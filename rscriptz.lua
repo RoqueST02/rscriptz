@@ -78,1085 +78,7 @@ local function _rqStyleExists(name)
     local ok, style = pcall(g_ui.getStyle, name)
     return ok and style ~= nil
 end
-local OTUI_STR = [==[
-
-
-
-
-
-RQTitle < Label
-  text-align: center
-  font: verdana-11px-rounded
-  color: #D4AF37
-  background-color: #232323
-  height: 20
-  margin-top: 6
-
-RQGroupTitle < Label
-  text-align: left
-  font: verdana-11px-rounded
-  color: #D4AF37
-  height: 14
-
-RQCheck < CheckBox
-  text-wrap: true
-  text-auto-resize: true
-  margin-top: 4
-  font: verdana-11px-rounded
-
-RQFieldLabel < Label
-  text-align: left
-  font: verdana-11px-rounded
-  color: #C8C8C8
-  height: 14
-
-RQCenterLabel < Label
-  text-align: center
-  font: verdana-11px-rounded
-  color: #E8E8E8
-
-RQHelp < Label
-  text-wrap: true
-  text-auto-resize: true
-  text-align: center
-  font: verdana-11px-rounded
-  color: #8A8A8A
-
-RQBigButton < Button
-  height: 22
-  font: cipsoftFont
-
-
-RQSpellEntry < Label
-  background-color: alpha
-  text-offset: 22 1
-  focusable: true
-  height: 16
-  font: verdana-11px-rounded
-
-  CheckBox
-    id: enabled
-    anchors.left: parent.left
-    anchors.verticalCenter: parent.verticalCenter
-    width: 15
-    height: 15
-    margin-left: 3
-
-  $focus:
-    background-color: #00000055
-
-  Button
-    id: remove
-    !text: tr('x')
-    anchors.right: parent.right
-    margin-right: 3
-    text-offset: 1 0
-    width: 15
-    height: 15
-
-RQItemEntry < Label
-  background-color: alpha
-  text-offset: 42 1
-  focusable: true
-  height: 18
-  font: verdana-11px-rounded
-
-  CheckBox
-    id: enabled
-    anchors.left: parent.left
-    anchors.verticalCenter: parent.verticalCenter
-    width: 15
-    height: 15
-    margin-left: 3
-
-  UIItem
-    id: preview
-    anchors.left: prev.right
-    margin-left: 3
-    anchors.verticalCenter: parent.verticalCenter
-    size: 16 16
-    focusable: false
-
-  $focus:
-    background-color: #00000055
-
-  Button
-    id: remove
-    !text: tr('x')
-    anchors.right: parent.right
-    margin-right: 3
-    text-offset: 1 0
-    width: 15
-    height: 15
-
-RQNameEntry < Label
-  background-color: alpha
-  text-offset: 6 1
-  focusable: true
-  height: 16
-  font: verdana-11px-rounded
-
-  $focus:
-    background-color: #00000055
-
-  Button
-    id: remove
-    !text: tr('x')
-    anchors.right: parent.right
-    margin-right: 3
-    text-offset: 1 0
-    width: 15
-    height: 15
-
-
-
-
-RScriptzHealingWindow < MainWindow
-  !text: tr('RScriptz - Healing (curaciones)')
-  size: 520 640
-  @onEscape: self:hide()
-
-  RQHelp
-    id: help
-    anchors.top: parent.top
-    anchors.left: parent.left
-    anchors.right: parent.right
-    text: Anade tantas reglas como quieras. Se recorren en orden -- pon primero las mas importantes.
-
-  RQFieldLabel
-    id: lblVoc
-    anchors.top: prev.bottom
-    anchors.left: parent.left
-    margin-top: 8
-    text: Vocacion:
-
-  ComboBox
-    id: voc
-    anchors.top: prev.top
-    anchors.left: prev.right
-    anchors.right: parent.right
-    margin-left: 10
-
-
-  RQGroupTitle
-    id: t1
-    anchors.top: voc.bottom
-    anchors.left: parent.left
-    margin-top: 10
-    text: SPELLS DE CURACION
-
-  TextList
-    id: spellList
-    anchors.top: prev.bottom
-    anchors.left: parent.left
-    anchors.right: parent.right
-    margin-top: 4
-    height: 90
-    padding: 1
-    padding-top: 2
-    vertical-scrollbar: spellListSb
-
-  VerticalScrollBar
-    id: spellListSb
-    anchors.top: spellList.top
-    anchors.bottom: spellList.bottom
-    anchors.right: spellList.right
-    step: 14
-    pixels-scroll: true
-
-  ComboBox
-    id: spellName
-    anchors.top: spellList.bottom
-    anchors.left: parent.left
-    margin-top: 6
-    width: 150
-
-  RQFieldLabel
-    id: spellHpLbl
-    anchors.verticalCenter: spellName.verticalCenter
-    anchors.left: spellName.right
-    margin-left: 8
-    text: HP<=
-
-  TextEdit
-    id: spellHpBelow
-    anchors.verticalCenter: spellName.verticalCenter
-    anchors.left: spellHpLbl.right
-    margin-left: 4
-    width: 40
-
-  RQFieldLabel
-    id: spellMpLbl
-    anchors.verticalCenter: spellName.verticalCenter
-    anchors.left: spellHpBelow.right
-    margin-left: 8
-    text: MP>=
-
-  TextEdit
-    id: spellMinMp
-    anchors.verticalCenter: spellName.verticalCenter
-    anchors.left: spellMpLbl.right
-    margin-left: 4
-    width: 40
-
-  Button
-    id: spellAdd
-    anchors.verticalCenter: spellName.verticalCenter
-    anchors.left: spellMinMp.right
-    margin-left: 6
-    text: Anadir
-    size: 60 20
-    font: cipsoftFont
-
-  Button
-    id: spellUp
-    anchors.top: spellName.bottom
-    anchors.right: parent.horizontalCenter
-    margin-top: 6
-    margin-right: 4
-    text: Subir
-    size: 60 20
-    font: cipsoftFont
-
-  Button
-    id: spellDown
-    anchors.top: spellName.bottom
-    anchors.left: parent.horizontalCenter
-    margin-top: 6
-    margin-left: 4
-    text: Bajar
-    size: 60 20
-    font: cipsoftFont
-
-
-  RQGroupTitle
-    id: t2
-    anchors.top: spellUp.bottom
-    anchors.left: parent.left
-    margin-top: 12
-    text: POCIONES DE VIDA
-
-  TextList
-    id: hpList
-    anchors.top: prev.bottom
-    anchors.left: parent.left
-    anchors.right: parent.right
-    margin-top: 4
-    height: 90
-    padding: 1
-    padding-top: 2
-    vertical-scrollbar: hpListSb
-
-  VerticalScrollBar
-    id: hpListSb
-    anchors.top: hpList.top
-    anchors.bottom: hpList.bottom
-    anchors.right: hpList.right
-    step: 14
-    pixels-scroll: true
-
-  ComboBox
-    id: hpPotName
-    anchors.top: hpList.bottom
-    anchors.left: parent.left
-    margin-top: 6
-    width: 170
-
-  RQFieldLabel
-    id: hpBelowLbl
-    anchors.verticalCenter: hpPotName.verticalCenter
-    anchors.left: hpPotName.right
-    margin-left: 8
-    text: HP<=
-
-  TextEdit
-    id: hpBelow
-    anchors.verticalCenter: hpPotName.verticalCenter
-    anchors.left: hpBelowLbl.right
-    margin-left: 4
-    width: 40
-
-  Button
-    id: hpAdd
-    anchors.verticalCenter: hpPotName.verticalCenter
-    anchors.left: hpBelow.right
-    margin-left: 6
-    text: Anadir
-    size: 60 20
-    font: cipsoftFont
-
-  Button
-    id: hpUp
-    anchors.top: hpPotName.bottom
-    anchors.right: parent.horizontalCenter
-    margin-top: 6
-    margin-right: 4
-    text: Subir
-    size: 60 20
-    font: cipsoftFont
-
-  Button
-    id: hpDown
-    anchors.top: hpPotName.bottom
-    anchors.left: parent.horizontalCenter
-    margin-top: 6
-    margin-left: 4
-    text: Bajar
-    size: 60 20
-    font: cipsoftFont
-
-
-  RQGroupTitle
-    id: t3
-    anchors.top: hpUp.bottom
-    anchors.left: parent.left
-    margin-top: 12
-    text: POCIONES DE MANA
-
-  TextList
-    id: mpList
-    anchors.top: prev.bottom
-    anchors.left: parent.left
-    anchors.right: parent.right
-    margin-top: 4
-    height: 90
-    padding: 1
-    padding-top: 2
-    vertical-scrollbar: mpListSb
-
-  VerticalScrollBar
-    id: mpListSb
-    anchors.top: mpList.top
-    anchors.bottom: mpList.bottom
-    anchors.right: mpList.right
-    step: 14
-    pixels-scroll: true
-
-  ComboBox
-    id: mpPotName
-    anchors.top: mpList.bottom
-    anchors.left: parent.left
-    margin-top: 6
-    width: 170
-
-  RQFieldLabel
-    id: mpBelowLbl
-    anchors.verticalCenter: mpPotName.verticalCenter
-    anchors.left: mpPotName.right
-    margin-left: 8
-    text: MP<=
-
-  TextEdit
-    id: mpBelow
-    anchors.verticalCenter: mpPotName.verticalCenter
-    anchors.left: mpBelowLbl.right
-    margin-left: 4
-    width: 40
-
-  Button
-    id: mpAdd
-    anchors.verticalCenter: mpPotName.verticalCenter
-    anchors.left: mpBelow.right
-    margin-left: 6
-    text: Anadir
-    size: 60 20
-    font: cipsoftFont
-
-  Button
-    id: mpUp
-    anchors.top: mpPotName.bottom
-    anchors.right: parent.horizontalCenter
-    margin-top: 6
-    margin-right: 4
-    text: Subir
-    size: 60 20
-    font: cipsoftFont
-
-  Button
-    id: mpDown
-    anchors.top: mpPotName.bottom
-    anchors.left: parent.horizontalCenter
-    margin-top: 6
-    margin-left: 4
-    text: Bajar
-    size: 60 20
-    font: cipsoftFont
-
-  HorizontalSeparator
-    id: sep
-    anchors.left: parent.left
-    anchors.right: parent.right
-    anchors.bottom: closeButton.top
-    margin-bottom: 6
-
-  Button
-    id: closeButton
-    !text: tr('Cerrar')
-    font: cipsoftFont
-    anchors.right: parent.right
-    anchors.bottom: parent.bottom
-    size: 55 21
-    margin-right: 5
-
-
-
-
-RScriptzSpellsWindow < MainWindow
-  !text: tr('RScriptz - Spells de ataque')
-  size: 520 420
-  @onEscape: self:hide()
-
-  RQHelp
-    id: help
-    anchors.top: parent.top
-    anchors.left: parent.left
-    anchors.right: parent.right
-    text: Anade tantos spells de ataque como quieras. Se lanza el primero que cumple sus condiciones.
-
-  RQFieldLabel
-    id: lblVoc
-    anchors.top: prev.bottom
-    anchors.left: parent.left
-    margin-top: 8
-    text: Vocacion:
-
-  ComboBox
-    id: voc
-    anchors.top: prev.top
-    anchors.left: prev.right
-    anchors.right: parent.right
-    margin-left: 10
-
-  RQGroupTitle
-    id: t1
-    anchors.top: voc.bottom
-    anchors.left: parent.left
-    margin-top: 10
-    text: LISTA DE SPELLS DE ATAQUE
-
-  TextList
-    id: list
-    anchors.top: prev.bottom
-    anchors.left: parent.left
-    anchors.right: parent.right
-    margin-top: 4
-    height: 150
-    padding: 1
-    padding-top: 2
-    vertical-scrollbar: listSb
-
-  VerticalScrollBar
-    id: listSb
-    anchors.top: list.top
-    anchors.bottom: list.bottom
-    anchors.right: list.right
-    step: 14
-    pixels-scroll: true
-
-  ComboBox
-    id: spellName
-    anchors.top: list.bottom
-    anchors.left: parent.left
-    margin-top: 6
-    width: 150
-
-  RQFieldLabel
-    id: lblCd
-    anchors.verticalCenter: spellName.verticalCenter
-    anchors.left: spellName.right
-    margin-left: 8
-    text: cada ms
-
-  TextEdit
-    id: cd
-    anchors.verticalCenter: spellName.verticalCenter
-    anchors.left: lblCd.right
-    margin-left: 4
-    width: 55
-
-  RQFieldLabel
-    id: lblMana
-    anchors.verticalCenter: spellName.verticalCenter
-    anchors.left: cd.right
-    margin-left: 8
-    text: MP>=
-
-  TextEdit
-    id: minMana
-    anchors.verticalCenter: spellName.verticalCenter
-    anchors.left: lblMana.right
-    margin-left: 4
-    width: 40
-
-  Button
-    id: add
-    anchors.verticalCenter: spellName.verticalCenter
-    anchors.left: minMana.right
-    margin-left: 6
-    text: Anadir
-    size: 60 20
-    font: cipsoftFont
-
-  Button
-    id: moveUp
-    anchors.top: spellName.bottom
-    anchors.right: parent.horizontalCenter
-    margin-top: 10
-    margin-right: 4
-    text: Subir
-    size: 60 20
-    font: cipsoftFont
-
-  Button
-    id: moveDown
-    anchors.top: spellName.bottom
-    anchors.left: parent.horizontalCenter
-    margin-top: 10
-    margin-left: 4
-    text: Bajar
-    size: 60 20
-    font: cipsoftFont
-
-  HorizontalSeparator
-    id: sep
-    anchors.left: parent.left
-    anchors.right: parent.right
-    anchors.bottom: closeButton.top
-    margin-bottom: 6
-
-  Button
-    id: closeButton
-    !text: tr('Cerrar')
-    font: cipsoftFont
-    anchors.right: parent.right
-    anchors.bottom: parent.bottom
-    size: 55 21
-    margin-right: 5
-
-
-
-
-RScriptzRunesWindow < MainWindow
-  !text: tr('RScriptz - Runes')
-  size: 540 430
-  @onEscape: self:hide()
-
-  RQHelp
-    id: help
-    anchors.top: parent.top
-    anchors.left: parent.left
-    anchors.right: parent.right
-    text: Elige runes de la lista. El item ID se pone solo. Anade varias reglas.
-
-  RQGroupTitle
-    id: t1
-    anchors.top: prev.bottom
-    anchors.left: parent.left
-    margin-top: 10
-    text: LISTA DE RUNES
-
-  TextList
-    id: list
-    anchors.top: prev.bottom
-    anchors.left: parent.left
-    anchors.right: parent.right
-    margin-top: 4
-    height: 150
-    padding: 1
-    padding-top: 2
-    vertical-scrollbar: listSb
-
-  VerticalScrollBar
-    id: listSb
-    anchors.top: list.top
-    anchors.bottom: list.bottom
-    anchors.right: list.right
-    step: 14
-    pixels-scroll: true
-
-  ComboBox
-    id: runeName
-    anchors.top: list.bottom
-    anchors.left: parent.left
-    margin-top: 8
-    width: 170
-
-  BotItem
-    id: preview
-    anchors.verticalCenter: runeName.verticalCenter
-    anchors.left: runeName.right
-    margin-left: 6
-
-  RQFieldLabel
-    id: lblCd
-    anchors.verticalCenter: runeName.verticalCenter
-    anchors.left: preview.right
-    margin-left: 8
-    text: cada ms
-
-  TextEdit
-    id: cd
-    anchors.verticalCenter: runeName.verticalCenter
-    anchors.left: lblCd.right
-    margin-left: 4
-    width: 55
-
-  RQFieldLabel
-    id: lblHp
-    anchors.verticalCenter: runeName.verticalCenter
-    anchors.left: cd.right
-    margin-left: 8
-    text: HPtgt>=
-
-  TextEdit
-    id: minHp
-    anchors.verticalCenter: runeName.verticalCenter
-    anchors.left: lblHp.right
-    margin-left: 4
-    width: 40
-
-  Button
-    id: add
-    anchors.verticalCenter: runeName.verticalCenter
-    anchors.left: minHp.right
-    margin-left: 6
-    text: Anadir
-    size: 60 20
-    font: cipsoftFont
-
-  RQCheck
-    id: onlyMonsters
-    anchors.top: runeName.bottom
-    anchors.left: parent.left
-    margin-top: 10
-    text: Solo contra monstruos (aplica a toda la lista)
-
-  Button
-    id: moveUp
-    anchors.top: onlyMonsters.bottom
-    anchors.right: parent.horizontalCenter
-    margin-top: 6
-    margin-right: 4
-    text: Subir
-    size: 60 20
-    font: cipsoftFont
-
-  Button
-    id: moveDown
-    anchors.top: onlyMonsters.bottom
-    anchors.left: parent.horizontalCenter
-    margin-top: 6
-    margin-left: 4
-    text: Bajar
-    size: 60 20
-    font: cipsoftFont
-
-  HorizontalSeparator
-    id: sep
-    anchors.left: parent.left
-    anchors.right: parent.right
-    anchors.bottom: closeButton.top
-    margin-bottom: 6
-
-  Button
-    id: closeButton
-    !text: tr('Cerrar')
-    font: cipsoftFont
-    anchors.right: parent.right
-    anchors.bottom: parent.bottom
-    size: 55 21
-    margin-right: 5
-
-
-
-
-RScriptzTargetWindow < MainWindow
-  !text: tr('RScriptz - Auto Target')
-  size: 380 240
-  @onEscape: self:hide()
-
-  RQHelp
-    id: help
-    anchors.top: parent.top
-    anchors.left: parent.left
-    anchors.right: parent.right
-    text: Ataca al monstruo mas cercano dentro del rango si no tienes target.
-
-  RQCenterLabel
-    id: rangeText
-    anchors.top: prev.bottom
-    anchors.left: parent.left
-    anchors.right: parent.right
-    margin-top: 12
-    text: Rango maximo: 5 tiles
-
-  HorizontalScrollBar
-    id: range
-    anchors.top: prev.bottom
-    anchors.left: parent.left
-    anchors.right: parent.right
-    margin-top: 3
-    minimum: 1
-    maximum: 10
-    step: 1
-    height: 16
-
-  RQCheck
-    id: keepTarget
-    anchors.top: prev.bottom
-    anchors.left: parent.left
-    margin-top: 10
-    text: No cambiar de target hasta que muera
-
-  RQCheck
-    id: preferLeader
-    anchors.top: prev.bottom
-    anchors.left: parent.left
-    text: Preferir el target del leader (MC Hunt)
-
-  HorizontalSeparator
-    id: sep
-    anchors.left: parent.left
-    anchors.right: parent.right
-    anchors.bottom: closeButton.top
-    margin-bottom: 6
-
-  Button
-    id: closeButton
-    !text: tr('Cerrar')
-    font: cipsoftFont
-    anchors.right: parent.right
-    anchors.bottom: parent.bottom
-    size: 55 21
-    margin-right: 5
-
-
-
-
-RScriptzFollowWindow < MainWindow
-  !text: tr('RScriptz - Follow')
-  size: 380 220
-  @onEscape: self:hide()
-
-  RQHelp
-    id: help
-    anchors.top: parent.top
-    anchors.left: parent.left
-    anchors.right: parent.right
-    text: Sigue a un jugador con findPath (verifica ruta antes de mover).
-
-  RQFieldLabel
-    id: lblLeader
-    anchors.top: prev.bottom
-    anchors.left: parent.left
-    margin-top: 12
-    text: Nombre del leader (exacto):
-
-  TextEdit
-    id: leader
-    anchors.top: prev.bottom
-    anchors.left: parent.left
-    anchors.right: parent.right
-    margin-top: 3
-
-  RQCenterLabel
-    id: distText
-    anchors.top: prev.bottom
-    anchors.left: parent.left
-    anchors.right: parent.right
-    margin-top: 10
-    text: Distancia maxima al leader: 2 tiles
-
-  HorizontalScrollBar
-    id: maxDist
-    anchors.top: prev.bottom
-    anchors.left: parent.left
-    anchors.right: parent.right
-    margin-top: 3
-    minimum: 1
-    maximum: 8
-    step: 1
-    height: 16
-
-  HorizontalSeparator
-    id: sep
-    anchors.left: parent.left
-    anchors.right: parent.right
-    anchors.bottom: closeButton.top
-    margin-bottom: 6
-
-  Button
-    id: closeButton
-    !text: tr('Cerrar')
-    font: cipsoftFont
-    anchors.right: parent.right
-    anchors.bottom: parent.bottom
-    size: 55 21
-    margin-right: 5
-
-
-
-
-RScriptzMCHuntWindow < MainWindow
-  !text: tr('RScriptz - MC Hunt')
-  size: 400 340
-  @onEscape: self:hide()
-
-  RQHelp
-    id: help
-    anchors.top: parent.top
-    anchors.left: parent.left
-    anchors.right: parent.right
-    text: MC Hunt sincroniza posicion y cruces de piso entre leader y MCs por el hub.
-
-  RQCheck
-    id: isLeader
-    anchors.top: prev.bottom
-    anchors.left: parent.left
-    margin-top: 10
-    text: YO SOY EL LEADER (activar en un solo personaje)
-
-  RQFieldLabel
-    id: lblLeader
-    anchors.top: prev.bottom
-    anchors.left: parent.left
-    margin-top: 10
-    text: Nombre del leader (los MCs escriben aqui):
-
-  TextEdit
-    id: leaderName
-    anchors.top: prev.bottom
-    anchors.left: parent.left
-    anchors.right: parent.right
-    margin-top: 3
-
-  RQCenterLabel
-    id: pubText
-    anchors.top: prev.bottom
-    anchors.left: parent.left
-    anchors.right: parent.right
-    margin-top: 10
-    text: Frecuencia de publicacion: 500 ms
-
-  HorizontalScrollBar
-    id: pubMs
-    anchors.top: prev.bottom
-    anchors.left: parent.left
-    anchors.right: parent.right
-    margin-top: 3
-    minimum: 200
-    maximum: 2000
-    step: 50
-    height: 16
-
-  RQCheck
-    id: followOnSameFloor
-    anchors.top: prev.bottom
-    anchors.left: parent.left
-    margin-top: 8
-    text: MCs siguen al leader tambien en el mismo piso
-
-  RQCheck
-    id: crossFloors
-    anchors.top: prev.bottom
-    anchors.left: parent.left
-    text: MCs cruzan piso automatico (escaleras/alcantarilla)
-
-  RQCheck
-    id: shareTarget
-    anchors.top: prev.bottom
-    anchors.left: parent.left
-    text: MCs atacan el mismo target que el leader
-
-  HorizontalSeparator
-    id: sep
-    anchors.left: parent.left
-    anchors.right: parent.right
-    anchors.bottom: closeButton.top
-    margin-bottom: 6
-
-  Button
-    id: closeButton
-    !text: tr('Cerrar')
-    font: cipsoftFont
-    anchors.right: parent.right
-    anchors.bottom: parent.bottom
-    size: 55 21
-    margin-right: 5
-
-
-
-
-RScriptzAntiPKWindow < MainWindow
-  !text: tr('RScriptz - Anti-PK')
-  size: 400 400
-  @onEscape: self:hide()
-
-  RQHelp
-    id: help
-    anchors.top: parent.top
-    anchors.left: parent.left
-    anchors.right: parent.right
-    text: Alerta cuando aparece un player desconocido. Puede avisar a los otros MCs.
-
-  RQCheck
-    id: broadcast
-    anchors.top: prev.bottom
-    anchors.left: parent.left
-    margin-top: 10
-    text: Avisar tambien a los otros MCs por el hub
-
-  RQCheck
-    id: playSound
-    anchors.top: prev.bottom
-    anchors.left: parent.left
-    text: Sonido de alerta
-
-  RQGroupTitle
-    id: t1
-    anchors.top: prev.bottom
-    anchors.left: parent.left
-    margin-top: 10
-    text: LISTA DE AMIGOS (no dispara alerta)
-
-  TextList
-    id: list
-    anchors.top: prev.bottom
-    anchors.left: parent.left
-    anchors.right: parent.right
-    margin-top: 4
-    height: 130
-    padding: 1
-    padding-top: 2
-    vertical-scrollbar: listSb
-
-  VerticalScrollBar
-    id: listSb
-    anchors.top: list.top
-    anchors.bottom: list.bottom
-    anchors.right: list.right
-    step: 14
-    pixels-scroll: true
-
-  TextEdit
-    id: nameInput
-    anchors.top: list.bottom
-    anchors.left: parent.left
-    margin-top: 6
-    width: 240
-
-  Button
-    id: add
-    anchors.verticalCenter: nameInput.verticalCenter
-    anchors.left: nameInput.right
-    margin-left: 6
-    text: Anadir amigo
-    size: 90 20
-    font: cipsoftFont
-
-  HorizontalSeparator
-    id: sep
-    anchors.left: parent.left
-    anchors.right: parent.right
-    anchors.bottom: closeButton.top
-    margin-bottom: 6
-
-  Button
-    id: closeButton
-    !text: tr('Cerrar')
-    font: cipsoftFont
-    anchors.right: parent.right
-    anchors.bottom: parent.bottom
-    size: 55 21
-    margin-right: 5
-
-
-
-
-RScriptzHubWindow < MainWindow
-  !text: tr('RScriptz - Conexion HUB')
-  size: 380 300
-  @onEscape: self:hide()
-
-  RQHelp
-    id: help
-    anchors.top: parent.top
-    anchors.left: parent.left
-    anchors.right: parent.right
-    text: El hub (RQ_Hub.py) conecta todos los MCs. Deben usar el mismo canal.
-
-  RQFieldLabel
-    id: lblChannel
-    anchors.top: prev.bottom
-    anchors.left: parent.left
-    margin-top: 12
-    text: Canal (todos los MCs igual):
-
-  TextEdit
-    id: channel
-    anchors.top: prev.bottom
-    anchors.left: parent.left
-    anchors.right: parent.right
-    margin-top: 3
-
-  RQFieldLabel
-    id: lblUrl
-    anchors.top: prev.bottom
-    anchors.left: parent.left
-    margin-top: 8
-    text: URL del hub:
-
-  TextEdit
-    id: url
-    anchors.top: prev.bottom
-    anchors.left: parent.left
-    anchors.right: parent.right
-    margin-top: 3
-
-  RQBigButton
-    id: reconnect
-    anchors.top: prev.bottom
-    anchors.left: parent.left
-    anchors.right: parent.right
-    margin-top: 10
-    text: Reconectar al hub
-
-  RQCenterLabel
-    id: status
-    anchors.top: prev.bottom
-    anchors.left: parent.left
-    anchors.right: parent.right
-    margin-top: 8
-    text: (estado)
-
-  HorizontalSeparator
-    id: sep
-    anchors.left: parent.left
-    anchors.right: parent.right
-    anchors.bottom: closeButton.top
-    margin-bottom: 6
-
-  Button
-    id: closeButton
-    !text: tr('Cerrar')
-    font: cipsoftFont
-    anchors.right: parent.right
-    anchors.bottom: parent.bottom
-    size: 55 21
-    margin-right: 5
-
-]==]
-local _rqOtuiOk = _rqLoadOTUI(OTUI_STR)
-_rqSay("OTUI status: "..tostring(_rqOtuiOk))
--- verificar que al menos una clase se registro
-if _rqOtuiOk then
-    if _rqStyleExists('RScriptzHubWindow') then
-        _rqSay("clase RScriptzHubWindow REGISTRADA -- ventanas listas")
-    else
-        _rqSay("OTUI cargo pero clases NO se registraron -- forzando fallo")
-        _rqOtuiOk = false
-    end
-end
+-- OTUI grande eliminado en v1.6.1 (todo va inline con setupUI)
 
 -- ==========================================================
 --  VALIDACION DE LICENCIA
@@ -2051,101 +973,125 @@ Panel
     height: 22
     !text: tr('MASTER ON/OFF')
 
-  Button
+  Label
     id: btnHub
     anchors.top: prev.bottom
     anchors.left: parent.left
     anchors.right: parent.right
-    margin-top: 6
-    height: 22
-    text: HUB (conexion MCs)
-    font: cipsoftFont
+    margin-top: 8
+    height: 26
+    text: [+]  HUB  (conexion MCs)
+    text-align: left
+    text-offset: 12 0
+    font: verdana-11px-rounded
     color: #FFFFFF
     background-color: #326432
+    focusable: true
 
-  Button
+  Label
     id: btnCura
     anchors.top: prev.bottom
     anchors.left: parent.left
     anchors.right: parent.right
-    margin-top: 4
-    height: 22
-    text: CURACIONES (HP + MP)
-    font: cipsoftFont
+    margin-top: 3
+    height: 26
+    text: [+]  CURACIONES  (HP + MP)
+    text-align: left
+    text-offset: 12 0
+    font: verdana-11px-rounded
     color: #FFFFFF
     background-color: #B23A48
+    focusable: true
 
-  Button
+  Label
     id: btnAtk
     anchors.top: prev.bottom
     anchors.left: parent.left
     anchors.right: parent.right
-    margin-top: 4
-    height: 22
-    text: SPELLS DE ATAQUE
-    font: cipsoftFont
+    margin-top: 3
+    height: 26
+    text: [+]  SPELLS DE ATAQUE
+    text-align: left
+    text-offset: 12 0
+    font: verdana-11px-rounded
     color: #FFFFFF
     background-color: #2E5AA0
+    focusable: true
 
-  Button
+  Label
     id: btnEx
     anchors.top: prev.bottom
     anchors.left: parent.left
     anchors.right: parent.right
-    margin-top: 4
-    height: 22
-    text: EXTRAS (spells custom)
-    font: cipsoftFont
+    margin-top: 3
+    height: 26
+    text: [+]  EXTRAS  (spells custom)
+    text-align: left
+    text-offset: 12 0
+    font: verdana-11px-rounded
     color: #FFFFFF
     background-color: #6E3AB2
+    focusable: true
 
-  Button
+  Label
     id: btnTgt
     anchors.top: prev.bottom
     anchors.left: parent.left
     anchors.right: parent.right
-    margin-top: 4
-    height: 22
-    text: AUTO-TARGET
-    font: cipsoftFont
+    margin-top: 3
+    height: 26
+    text: [+]  AUTO-TARGET
+    text-align: left
+    text-offset: 12 0
+    font: verdana-11px-rounded
     color: #FFFFFF
     background-color: #B2743A
+    focusable: true
 
-  Button
+  Label
     id: btnFol
     anchors.top: prev.bottom
     anchors.left: parent.left
     anchors.right: parent.right
-    margin-top: 4
-    height: 22
-    text: FOLLOW (leader)
-    font: cipsoftFont
+    margin-top: 3
+    height: 26
+    text: [+]  FOLLOW  (leader)
+    text-align: left
+    text-offset: 12 0
+    font: verdana-11px-rounded
     color: #FFFFFF
     background-color: #B2A03A
+    focusable: true
 
-  Button
+  Label
     id: btnMch
     anchors.top: prev.bottom
     anchors.left: parent.left
     anchors.right: parent.right
-    margin-top: 4
-    height: 22
-    text: MC HUNT (multi-cuenta)
-    font: cipsoftFont
+    margin-top: 3
+    height: 26
+    text: [+]  MC HUNT  (multi-cuenta)
+    text-align: left
+    text-offset: 12 0
+    font: verdana-11px-rounded
     color: #FFFFFF
     background-color: #3AB2A0
+    focusable: true
 
-  Button
+  Label
     id: btnPk
     anchors.top: prev.bottom
     anchors.left: parent.left
     anchors.right: parent.right
-    margin-top: 4
-    height: 22
-    text: ANTI-PK
-    font: cipsoftFont
+    margin-top: 3
+    height: 26
+    text: [+]  ANTI-PK
+    text-align: left
+    text-offset: 12 0
+    font: verdana-11px-rounded
     color: #FFFFFF
     background-color: #C83C3C
+    focusable: true
 ]==])
     local pCura = setupUI([==[
 Panel
@@ -3375,14 +2321,28 @@ Panel
         end)
     end)
 
-    pMenu.btnHub.onClick  = function() showPage("hub") end
-    pMenu.btnCura.onClick = function() showPage("cura") end
-    pMenu.btnAtk.onClick  = function() showPage("atk") end
-    pMenu.btnEx.onClick   = function() showPage("ex") end
-    pMenu.btnTgt.onClick  = function() showPage("tgt") end
-    pMenu.btnFol.onClick  = function() showPage("fol") end
-    pMenu.btnMch.onClick  = function() showPage("mch") end
-    pMenu.btnPk.onClick   = function() showPage("pk") end
+    -- Los "botones" del menu son Labels (para que acepten background-color
+    -- en Mayas MEHAH). Los Labels no tienen onClick, usamos onMousePress.
+    local function bindMenuBtn(w, pageName)
+        if not w then return end
+        pcall(function()
+            w.onMousePress = function(_, _, button)
+                -- button 1 = left click
+                if button == 1 or button == nil then showPage(pageName) end
+                return true
+            end
+        end)
+        -- fallback por si onMousePress no funciona: onClick
+        pcall(function() w.onClick = function() showPage(pageName) end end)
+    end
+    bindMenuBtn(pMenu.btnHub,  "hub")
+    bindMenuBtn(pMenu.btnCura, "cura")
+    bindMenuBtn(pMenu.btnAtk,  "atk")
+    bindMenuBtn(pMenu.btnEx,   "ex")
+    bindMenuBtn(pMenu.btnTgt,  "tgt")
+    bindMenuBtn(pMenu.btnFol,  "fol")
+    bindMenuBtn(pMenu.btnMch,  "mch")
+    bindMenuBtn(pMenu.btnPk,   "pk")
 
     -- Todos los "Volver" vuelven al menu
     for _, p in ipairs({pCura, pAtk, pEx, pTgt, pFol, pMch, pPk, pHub}) do
