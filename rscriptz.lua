@@ -1815,10 +1815,25 @@ Panel
     C.ensure("free.atkSpell",   vocAttack[1] or "exori")
     C.ensure("free.atkCd",      2000)
 
+    -- fillCombo defensivo: prueba varias APIs porque Mayas MEHAH puede ser distinto
     local function fillCombo(combo, opts, current)
+        if not combo or not opts or #opts == 0 then return end
         pcall(function() combo:clearOptions() end)
-        for _, o in ipairs(opts) do pcall(function() combo:addOption(o) end) end
-        if current then pcall(function() combo:setCurrentOption(current) end) end
+        local added = 0
+        for _, o in ipairs(opts) do
+            local s = tostring(o)
+            local ok = pcall(function() combo:addOption(s) end)
+            if not ok then pcall(function() combo:addOption(s, s) end); ok = true end
+            if ok then added = added + 1 end
+        end
+        if current then
+            local s = tostring(current)
+            pcall(function() combo:setCurrentOption(s) end)
+            pcall(function() combo:setOption(s) end)
+        end
+        if added == 0 then
+            _rqSay("fillCombo FALLO -- ninguna opcion aceptada")
+        end
     end
 
     fillCombo(ui.voc, RQ.Catalog.vocations, C.get("free.voc"))
@@ -2938,10 +2953,25 @@ Panel
     RQ._vipPanel = ui
 
     -- helpers ---------------------------------------------------------
+    -- fillCombo defensivo: prueba varias APIs porque Mayas MEHAH puede ser distinto
     local function fillCombo(combo, opts, current)
+        if not combo or not opts or #opts == 0 then return end
         pcall(function() combo:clearOptions() end)
-        for _, o in ipairs(opts) do pcall(function() combo:addOption(o) end) end
-        if current then pcall(function() combo:setCurrentOption(current) end) end
+        local added = 0
+        for _, o in ipairs(opts) do
+            local s = tostring(o)
+            local ok = pcall(function() combo:addOption(s) end)
+            if not ok then pcall(function() combo:addOption(s, s) end); ok = true end
+            if ok then added = added + 1 end
+        end
+        if current then
+            local s = tostring(current)
+            pcall(function() combo:setCurrentOption(s) end)
+            pcall(function() combo:setOption(s) end)
+        end
+        if added == 0 then
+            _rqSay("fillCombo FALLO -- ninguna opcion aceptada")
+        end
     end
     -- versiones hyper-defensivas: cada operacion en pcall, si un widget
     -- falla al bindear no rompe el resto del setup.
@@ -3005,16 +3035,19 @@ Panel
     _rqSay("VIP paso 1: bind master switch")
     bindSwitch(ui.master, "vip.master", true)
     _rqSay("VIP paso 2: fillCombo vocacion (voc="..tostring(C.get("vip.voc"))..")")
-    pcall(function() fillCombo(ui.voc, RQ.Catalog.vocations, C.get("vip.voc")) end)
-    ui.voc.onOptionChange = function(w)
-        local o = w:getCurrentOption(); local t = o and o.text or nil
-        if not t then return end
-        C.set("vip.voc", t)
-        -- refrescar combos de attack spells con la nueva vocacion
-        for i=1,3 do
-            fillCombo(ui["atk"..i.."spell"], RQ.Catalog.attackSpells[t] or {}, C.get("vip.atk"..i..".spell"))
+    -- El combo Vocacion vive dentro de Panel wrapper "vocRow" -> ui.vocRow.voc
+    local vocCombo = ui.vocRow and ui.vocRow.voc or ui.voc
+    pcall(function() fillCombo(vocCombo, RQ.Catalog.vocations, C.get("vip.voc")) end)
+    pcall(function()
+        vocCombo.onOptionChange = function(w)
+            local o = w:getCurrentOption(); local t = o and o.text or nil
+            if not t then return end
+            C.set("vip.voc", t)
+            for i=1,3 do
+                pcall(function() fillCombo(ui["atk"..i.."spell"], RQ.Catalog.attackSpells[t] or {}, C.get("vip.atk"..i..".spell")) end)
+            end
         end
-    end
+    end)
 
     -- HP pots ----------------------------------------------------------
     _rqSay("VIP paso 3: HP pots")
@@ -3058,12 +3091,12 @@ Panel
 
     -- Follow -----------------------------------------------------------
     bindSwitch(ui.folOn, "vip.fol.on", false)
-    bindText(ui.folLeader, "vip.fol.leader", "")
+    bindText(ui.folLdrRow and ui.folLdrRow.folLeader or ui.folLeader, "vip.fol.leader", "")
     bindSlider(ui.folDist, ui.folDistText, "vip.fol.dist", 2, "Distancia max: %d")
 
     -- MC Hunt ----------------------------------------------------------
     bindSwitch(ui.mchIsLeader, "vip.mch.isLeader", false)
-    bindText(ui.mchLeader, "vip.mch.leader", "")
+    bindText(ui.mchLdrRow and ui.mchLdrRow.mchLeader or ui.mchLeader, "vip.mch.leader", "")
     bindSwitch(ui.mchFollow, "vip.mch.followSame", true)
     bindSwitch(ui.mchCross, "vip.mch.crossFl", true)
 
@@ -3072,7 +3105,7 @@ Panel
     bindSwitch(ui.pkBroadcast, "vip.pk.broadcast", true)
 
     -- Hub --------------------------------------------------------------
-    bindText(ui.hubCanal, "net.canal", "rq")
+    bindText(ui.hubCanalRow and ui.hubCanalRow.hubCanal or ui.hubCanal, "net.canal", "rq")
     ui.hubReconnect.onClick = function()
         RQ.Net.connect(C.get("net.canal", "rq"))
     end
