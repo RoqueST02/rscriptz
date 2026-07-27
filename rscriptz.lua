@@ -1500,18 +1500,23 @@ end)()
 --  CATALOGO
 -- ==========================================================
 RQ.Catalog = {
-    vocations = {"Knight", "Paladin", "Druid", "Sorcerer"},
+    -- Vocaciones estandar de scripts: EK/RP/ED/MS/EM (promoted)
+    -- EM = Exalted Monk (vocacion nueva). Los spells de EM son aproximados,
+    -- ajustar si el usuario reporta que no son los correctos.
+    vocations = {"EK", "RP", "ED", "MS", "EM"},
     healSpells = {
-        Knight   = {"exura ico", "exura gran ico", "exura san"},
-        Paladin  = {"exura", "exura gran", "exura san"},
-        Druid    = {"exura", "exura gran", "exura vita", "exura gran mas res"},
-        Sorcerer = {"exura", "exura gran", "exura vita"},
+        EK = {"exura ico", "exura gran ico", "exura san"},
+        RP = {"exura", "exura gran", "exura san"},
+        ED = {"exura", "exura gran", "exura vita", "exura gran mas res"},
+        MS = {"exura", "exura gran", "exura vita"},
+        EM = {"exura", "exura ico", "exura san"},
     },
     attackSpells = {
-        Knight   = {"exori", "exori gran", "exori hur", "exori ico", "exori min", "exori mas"},
-        Paladin  = {"exori san", "exori mort", "exori con", "exori gran con", "exevo con hur", "divine missile"},
-        Druid    = {"exori frigo", "exori tera", "exori gran frigo", "exori gran tera", "exori mas"},
-        Sorcerer = {"exori vis", "exori flam", "exori mort", "exori gran vis", "exori gran flam", "exori mas"},
+        EK = {"exori", "exori gran", "exori hur", "exori ico", "exori min", "exori mas"},
+        RP = {"exori san", "exori mort", "exori con", "exori gran con", "exevo con hur", "divine missile"},
+        ED = {"exori frigo", "exori tera", "exori gran frigo", "exori gran tera", "exori mas"},
+        MS = {"exori vis", "exori flam", "exori mort", "exori gran vis", "exori gran flam", "exori mas"},
+        EM = {"exori", "exori mas", "exori ico"},
     },
     runes = {
         {name="Sudden Death (SD)",      id=3155},
@@ -1557,12 +1562,15 @@ local function findNameById(lista, id)
     return nil
 end
 local function vocIdToName(vocId)
-    local base = ((vocId or 0) - 1) % 4 + 1
-    if base == 1 then return "Sorcerer" end
-    if base == 2 then return "Druid" end
-    if base == 3 then return "Paladin" end
-    if base == 4 then return "Knight" end
-    return "Knight"
+    vocId = vocId or 0
+    -- Monk / Exalted Monk (vocacion nueva, ids inciertos entre servers)
+    if vocId == 5 or vocId == 10 or vocId == 15 then return "EM" end
+    local base = ((vocId - 1) % 4) + 1
+    if base == 1 then return "MS" end
+    if base == 2 then return "ED" end
+    if base == 3 then return "RP" end
+    if base == 4 then return "EK" end
+    return "EK"
 end
 
 -- ==========================================================
@@ -1570,17 +1578,30 @@ end
 -- ==========================================================
 -- catalogo de spells de haste por vocacion (para el modo FREE)
 RQ.Catalog.hasteSpells = {
-    Knight   = {"utani hur", "utani gran hur"},
-    Paladin  = {"utani hur", "utani gran hur"},
-    Druid    = {"utani hur"},
-    Sorcerer = {"utani hur", "utani gran hur"},
+    EK = {"utani hur", "utani gran hur"},
+    RP = {"utani hur", "utani gran hur"},
+    ED = {"utani hur"},
+    MS = {"utani hur", "utani gran hur"},
+    EM = {"utani hur"},
 }
+
+-- helper: verifica si el player tiene el buff de haste activo.
+-- Usa bitmask de PlayerStates. Bit 6 (valor 32) = Haste en OTServ estandar.
+local function _rqTieneHaste()
+    local ok, states = pcall(function() return player:getStates() end)
+    if not ok or type(states) ~= "number" then return false end
+    -- probamos con el numero estandar (32) y con PlayerStates.Haste si existe
+    local mask = 32
+    if PlayerStates and PlayerStates.Haste then mask = PlayerStates.Haste end
+    -- bit.band puede no estar, hacer AND manual
+    return (states % (mask * 2)) >= mask
+end
 
 rqSetupFreeBot = function()
     setDefaultTab("RQ")
     local ui = setupUI([[
 Panel
-  height: 260
+  height: 310
 
   Label
     id: brand
@@ -1600,7 +1621,7 @@ Panel
     anchors.left: parent.left
     anchors.right: parent.right
     text-align: center
-    text: Curacion + Haste
+    text: Curacion + Haste + 1 Spell
     font: verdana-11px-rounded
     color: #8A8A8A
     background-color: #1A1A1A
@@ -1642,10 +1663,10 @@ Panel
     font: verdana-11px-rounded
     height: 14
     margin-top: 4
-    width: 60
+    width: 50
 
   ComboBox
-    id: healSpell
+    id: heal1
     anchors.top: prev.top
     anchors.left: prev.right
     anchors.right: parent.right
@@ -1681,7 +1702,7 @@ Panel
     anchors.right: parent.right
     margin-top: 8
     height: 20
-    !text: tr('HASTE')
+    !text: tr('HASTE (auto)')
 
   Label
     id: hasteSpellLbl
@@ -1692,7 +1713,7 @@ Panel
     font: verdana-11px-rounded
     height: 14
     margin-top: 4
-    width: 60
+    width: 50
 
   ComboBox
     id: hasteSpell
@@ -1701,26 +1722,53 @@ Panel
     anchors.right: parent.right
     margin-left: 4
 
+  BotSwitch
+    id: swAtk
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    margin-top: 8
+    height: 20
+    !text: tr('SPELL ATAQUE')
+
   Label
-    id: hasteCdText
+    id: atkLbl
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    text: Spell:
+    color: #C8C8C8
+    font: verdana-11px-rounded
+    height: 14
+    margin-top: 4
+    width: 50
+
+  ComboBox
+    id: atkSpell
+    anchors.top: prev.top
+    anchors.left: prev.right
+    anchors.right: parent.right
+    margin-left: 4
+
+  Label
+    id: atkCdText
     anchors.top: prev.bottom
     anchors.left: parent.left
     anchors.right: parent.right
     text-align: center
-    text: Cast cada 20 seg
+    text: cada 2000 ms
     color: #E8E8E8
     font: verdana-11px-rounded
     height: 14
     margin-top: 4
 
   HorizontalScrollBar
-    id: hasteCd
+    id: atkCd
     anchors.top: prev.bottom
     anchors.left: parent.left
     anchors.right: parent.right
-    minimum: 5
-    maximum: 60
-    step: 1
+    minimum: 500
+    maximum: 6000
+    step: 100
     height: 16
     margin-top: 2
 
@@ -1734,30 +1782,31 @@ Panel
     background-color: #B28B00
     font: cipsoftFont
     height: 22
-    margin-top: 8
+    margin-top: 10
 ]])
 
     local C = RQ.Config
-    -- helper para llamar cast con manejo de errores
     local function safeCast(words)
         pcall(function() cast(words, 900) end)
     end
-    -- detectar vocacion inicial
-    local vocInicial = "Knight"
+    local vocInicial = "EK"
     pcall(function()
         local v = player:getVocation()
         if v then vocInicial = vocIdToName(v) end
     end)
+    local vocSpells = RQ.Catalog.healSpells[vocInicial] or {"exura"}
+    local vocAttack = RQ.Catalog.attackSpells[vocInicial] or {"exori"}
 
-    C.ensure("free.voc",         vocInicial)
-    C.ensure("free.healOn",      true)
-    C.ensure("free.healSpell",   (RQ.Catalog.healSpells[C.get("free.voc")] or {"exura"})[1])
-    C.ensure("free.healHp",      80)
-    C.ensure("free.hasteOn",     true)
-    C.ensure("free.hasteSpell",  (RQ.Catalog.hasteSpells[C.get("free.voc")] or {"utani hur"})[1])
-    C.ensure("free.hasteCd",     20)
+    C.ensure("free.voc",        vocInicial)
+    C.ensure("free.healOn",     true)
+    C.ensure("free.healSpell",  vocSpells[1] or "exura")
+    C.ensure("free.healHp",     80)
+    C.ensure("free.hasteOn",    true)
+    C.ensure("free.hasteSpell", (RQ.Catalog.hasteSpells[C.get("free.voc")] or {"utani hur"})[1])
+    C.ensure("free.atkOn",      false)
+    C.ensure("free.atkSpell",   vocAttack[1] or "exori")
+    C.ensure("free.atkCd",      2000)
 
-    -- rellenar combos ------------------------------------------------
     local function fillCombo(combo, opts, current)
         pcall(function() combo:clearOptions() end)
         for _, o in ipairs(opts) do pcall(function() combo:addOption(o) end) end
@@ -1766,954 +1815,1129 @@ Panel
 
     fillCombo(ui.voc, RQ.Catalog.vocations, C.get("free.voc"))
     local function refreshSpellCombos(voc)
-        fillCombo(ui.healSpell, RQ.Catalog.healSpells[voc] or {}, C.get("free.healSpell"))
+        fillCombo(ui.heal1,     RQ.Catalog.healSpells[voc]   or {}, C.get("free.healSpell"))
         fillCombo(ui.hasteSpell, RQ.Catalog.hasteSpells[voc] or {}, C.get("free.hasteSpell"))
+        fillCombo(ui.atkSpell,  RQ.Catalog.attackSpells[voc] or {}, C.get("free.atkSpell"))
     end
     refreshSpellCombos(C.get("free.voc"))
-
     ui.voc.onOptionChange = function(w)
-        local o = w:getCurrentOption()
-        local t = o and o.text or nil
-        if not t then return end
-        C.set("free.voc", t)
-        refreshSpellCombos(t)
+        local o = w:getCurrentOption(); local t = o and o.text or nil
+        if t then C.set("free.voc", t); refreshSpellCombos(t) end
     end
 
-    -- switches ------------------------------------------------
+    -- switches
     ui.swHeal:setOn(C.get("free.healOn", true))
-    ui.swHeal.onClick = function(w)
-        local n = not C.get("free.healOn", true)
-        C.set("free.healOn", n); w:setOn(n)
-    end
+    ui.swHeal.onClick = function(w) local n = not C.get("free.healOn", true); C.set("free.healOn", n); w:setOn(n) end
     ui.swHaste:setOn(C.get("free.hasteOn", true))
-    ui.swHaste.onClick = function(w)
-        local n = not C.get("free.hasteOn", true)
-        C.set("free.hasteOn", n); w:setOn(n)
-    end
+    ui.swHaste.onClick = function(w) local n = not C.get("free.hasteOn", true); C.set("free.hasteOn", n); w:setOn(n) end
+    ui.swAtk:setOn(C.get("free.atkOn", false))
+    ui.swAtk.onClick = function(w) local n = not C.get("free.atkOn", false); C.set("free.atkOn", n); w:setOn(n) end
 
-    -- combos de spell ------------------------------------------------
-    ui.healSpell.onOptionChange = function(w)
-        local o = w:getCurrentOption(); local t = o and o.text or nil
-        if t then C.set("free.healSpell", t) end
-    end
-    ui.hasteSpell.onOptionChange = function(w)
-        local o = w:getCurrentOption(); local t = o and o.text or nil
-        if t then C.set("free.hasteSpell", t) end
-    end
+    -- combos
+    ui.heal1.onOptionChange     = function(w) local o = w:getCurrentOption(); if o and o.text then C.set("free.healSpell", o.text) end end
+    ui.hasteSpell.onOptionChange = function(w) local o = w:getCurrentOption(); if o and o.text then C.set("free.hasteSpell", o.text) end end
+    ui.atkSpell.onOptionChange  = function(w) local o = w:getCurrentOption(); if o and o.text then C.set("free.atkSpell", o.text) end end
 
-    -- sliders con label dinamico ------------------------------------------------
-    local function refreshHealHpText()
+    -- sliders
+    local function refreshHealText()
         pcall(function() ui.healHpText:setText("Curar cuando HP<= "..C.get("free.healHp", 80).."%") end)
     end
-    ui.healHp:setValue(C.get("free.healHp", 80))
-    refreshHealHpText()
-    ui.healHp.onValueChange = function(_, v) C.set("free.healHp", v); refreshHealHpText() end
+    ui.healHp:setValue(C.get("free.healHp", 80)); refreshHealText()
+    ui.healHp.onValueChange = function(_, v) C.set("free.healHp", v); refreshHealText() end
 
-    local function refreshHasteCdText()
-        pcall(function() ui.hasteCdText:setText("Cast cada "..C.get("free.hasteCd", 20).." seg") end)
+    local function refreshAtkText()
+        pcall(function() ui.atkCdText:setText("cada "..C.get("free.atkCd", 2000).." ms") end)
     end
-    ui.hasteCd:setValue(C.get("free.hasteCd", 20))
-    refreshHasteCdText()
-    ui.hasteCd.onValueChange = function(_, v) C.set("free.hasteCd", v); refreshHasteCdText() end
+    ui.atkCd:setValue(C.get("free.atkCd", 2000)); refreshAtkText()
+    ui.atkCd.onValueChange = function(_, v) C.set("free.atkCd", v); refreshAtkText() end
 
-    -- guardar panel para hot-swap al VIP
     RQ._freePanel = ui
+    ui.upgradeBtn.onClick = function() _askForKey() end
 
-    ui.upgradeBtn.onClick = function()
-        _askForKey()
-    end
-
-    -- macros ------------------------------------------------
+    -- MACROS
     macro(200, "RScriptz FREE: Curacion", function()
         if RQ.tier ~= "FREE" then return end
         if not C.get("free.healOn", true) then return end
         local hp = RQ.Game.hp()
-        local threshold = tonumber(C.get("free.healHp", 80)) or 80
-        if hp <= threshold then
-            safeCast(C.get("free.healSpell", "exura"))
-        end
+        local thr = tonumber(C.get("free.healHp", 80)) or 80
+        if hp <= thr then safeCast(C.get("free.healSpell", "exura")) end
     end)
 
-    -- haste: usar os.time() (segundos) en lugar de g_clock.millis()
-    -- porque g_clock no siempre esta expuesto al scope del macro en Mayas OTC
-    local lastHaste = 0
-    macro(500, "RScriptz FREE: Haste", function()
+    macro(1000, "RScriptz FREE: Haste", function()
         if RQ.tier ~= "FREE" then return end
         if not C.get("free.hasteOn", true) then return end
-        local cd = tonumber(C.get("free.hasteCd", 20)) or 20
-        if os.time() - lastHaste >= cd then
-            safeCast(C.get("free.hasteSpell", "utani hur"))
-            lastHaste = os.time()
+        if _rqTieneHaste() then return end
+        safeCast(C.get("free.hasteSpell", "utani hur"))
+    end)
+
+    local lastAtk = 0
+    macro(500, "RScriptz FREE: Spell ataque", function()
+        if RQ.tier ~= "FREE" then return end
+        if not C.get("free.atkOn", false) then return end
+        if not getAttackingCreature() then return end
+        local cd = tonumber(C.get("free.atkCd", 2000)) or 2000
+        if os.time() * 1000 - lastAtk >= cd then
+            safeCast(C.get("free.atkSpell", "exori"))
+            lastAtk = os.time() * 1000
         end
     end)
 
-    RQ.Logger.info("RScriptz", "listo v"..RQ.version.." modo FREE (curacion + haste)")
+    RQ.Logger.info("RScriptz", "listo v"..RQ.version.." modo FREE (heal+haste+1atk)")
 end
 
 -- ==========================================================
 --  SETUP FULL  (VIP: todo el bot)
 -- ==========================================================
 rqSetupFullBot = function()
-    -- ==========================================================
-    --  DEFAULTS
-    -- ==========================================================
-    local C = RQ.Config
-    C.ensure("net.canal", "rq")
-    C.ensure("net.url", "http://127.0.0.1:9876")
-    C.ensure("master.on", true)
-
-    -- healing: LISTAS de reglas
-    C.ensure("heal.voc", vocIdToName(RQ.Game.voc()))
-    C.ensure("heal.spells", {
-        {enabled=true, spell="exura",     hpBelow=90, minMp=5},
-        {enabled=true, spell="exura gran", hpBelow=70, minMp=15},
-    })
-    C.ensure("heal.hpPots", {
-        {enabled=true, itemId=266, hpBelow=60},
-        {enabled=true, itemId=239, hpBelow=30},
-    })
-    C.ensure("heal.mpPots", {
-        {enabled=true, itemId=268, mpBelow=30},
-    })
-    -- master del healing = si hay al menos una regla enabled
-    C.ensure("heal.on", true)
-
-    -- spells ataque: LISTA de reglas
-    C.ensure("spells.on", false)
-    C.ensure("spells.voc", vocIdToName(RQ.Game.voc()))
-    C.ensure("spells.rules", {
-        {enabled=true, spell="exori", cd=2000, minMana=60},
-    })
-
-    -- runes: LISTA de reglas
-    C.ensure("runes.on", false)
-    C.ensure("runes.onlyMons", true)
-    C.ensure("runes.rules", {
-        {enabled=true, name="Sudden Death (SD)", itemId=3155, cd=1000, minHp=30},
-    })
-
-    -- target
-    C.ensure("target.on", false)
-    C.ensure("target.range", 5)
-    C.ensure("target.keep", true)
-    C.ensure("target.followLdr", false)
-
-    -- follow
-    C.ensure("follow.on", false)
-    C.ensure("follow.leader", "")
-    C.ensure("follow.maxDist", 2)
-
-    -- mchunt
-    C.ensure("mchunt.isLeader", false)
-    C.ensure("mchunt.leader", "")
-    C.ensure("mchunt.pubMs", 500)
-    C.ensure("mchunt.followSame", true)
-    C.ensure("mchunt.crossFl", true)
-    C.ensure("mchunt.shareTgt", false)
-
-    -- antipk
-    C.ensure("antipk.on", true)
-    C.ensure("antipk.broadcast", true)
-    C.ensure("antipk.sound", true)
-    C.ensure("antipk.friends", {})   -- lista de nombres {"Pepe", "Juan"}
-
-    RQ.Net.setUrl(C.get("net.url", "http://127.0.0.1:9876"))
-
-    -- ==========================================================
-    --  PANEL PRINCIPAL EN LA PESTANA "RQ"
-    -- ==========================================================
     setDefaultTab("RQ")
+    local C = RQ.Config
+    local function safeCast(w) pcall(function() cast(w, 900) end) end
+    local function safeUseSelf(id) pcall(function() useOnYourself(tonumber(id) or 0) end) end
+    local function safeUseWith(id, tgt) pcall(function() useWith(tonumber(id) or 0, tgt) end) end
 
-    local panelName = "rscriptz_main"
-    local ui = setupUI([[
-    Panel
-      height: 288
+    -- vocacion inicial detectada
+    local vocIni = "EK"
+    pcall(function() vocIni = vocIdToName(player:getVocation() or 0) end)
 
-      Label
-        id: brand
-        anchors.top: parent.top
-        anchors.left: parent.left
-        anchors.right: parent.right
-        text-align: center
-        text: RScriptz v0.5
-        font: verdana-11px-rounded
-        color: #D4AF37
-        background-color: #232323
-        height: 20
+    -- defaults por primera vez
+    C.ensure("vip.voc", vocIni)
+    C.ensure("vip.master", true)
 
-      Label
-        id: netLbl
-        anchors.top: prev.bottom
-        anchors.left: parent.left
-        anchors.right: parent.right
-        text-align: center
-        text: Net: iniciando...
-        font: verdana-11px-rounded
-        color: #C83C3C
-        background-color: #1A1A1A
-        height: 18
+    local defHp  = {266,  239,  8473}   -- Health, Great, Supreme
+    local defMp  = {268,  238,  7642}   -- Mana, Great, Ultimate
+    local defHpPct = {60, 40, 20}
+    local defMpPct = {50, 30, 15}
+    local vocAtk = RQ.Catalog.attackSpells[vocIni] or {"exori","exori mas","exori gran"}
+    for i=1,3 do
+        C.ensure("vip.hp"..i..".on",   i==1)
+        C.ensure("vip.hp"..i..".item", defHp[i])
+        C.ensure("vip.hp"..i..".pct",  defHpPct[i])
 
-      BotSwitch
-        id: master
-        anchors.top: prev.bottom
-        anchors.left: parent.left
-        anchors.right: parent.right
-        margin-top: 4
-        height: 20
-        !text: tr('MASTER ON/OFF (todo el bot)')
+        C.ensure("vip.mp"..i..".on",   i==1)
+        C.ensure("vip.mp"..i..".item", defMp[i])
+        C.ensure("vip.mp"..i..".pct",  defMpPct[i])
 
-      Panel
-        id: rowHub
-        anchors.top: prev.bottom
-        anchors.left: parent.left
-        anchors.right: parent.right
-        margin-top: 6
-        height: 20
-        Button
-          id: btn
-          anchors.fill: parent
-          text: HUB (conexion)
-          color: #FFFFFF
-          background-color: #326432
-          font: cipsoftFont
+        C.ensure("vip.atk"..i..".on",    false)
+        C.ensure("vip.atk"..i..".spell", vocAtk[i] or vocAtk[1] or "exori")
+        C.ensure("vip.atk"..i..".cd",    2000)
 
-      Panel
-        id: rowHeal
-        anchors.top: prev.bottom
-        anchors.left: parent.left
-        anchors.right: parent.right
-        margin-top: 4
-        height: 20
-        BotSwitch
-          id: sw
-          anchors.top: parent.top
-          anchors.left: parent.left
-          anchors.bottom: parent.bottom
-          width: 96
-          !text: tr('HEALING')
-        Button
-          id: btn
-          anchors.top: parent.top
-          anchors.bottom: parent.bottom
-          anchors.left: prev.right
-          anchors.right: parent.right
-          margin-left: 4
-          text: Configurar
-          color: #FFFFFF
-          background-color: #B23A48
-          font: cipsoftFont
-
-      Panel
-        id: rowSpells
-        anchors.top: prev.bottom
-        anchors.left: parent.left
-        anchors.right: parent.right
-        margin-top: 4
-        height: 20
-        BotSwitch
-          id: sw
-          anchors.top: parent.top
-          anchors.left: parent.left
-          anchors.bottom: parent.bottom
-          width: 96
-          !text: tr('SPELLS')
-        Button
-          id: btn
-          anchors.top: parent.top
-          anchors.bottom: parent.bottom
-          anchors.left: prev.right
-          anchors.right: parent.right
-          margin-left: 4
-          text: Configurar
-          color: #FFFFFF
-          background-color: #2E5AA0
-          font: cipsoftFont
-
-      Panel
-        id: rowRunes
-        anchors.top: prev.bottom
-        anchors.left: parent.left
-        anchors.right: parent.right
-        margin-top: 4
-        height: 20
-        BotSwitch
-          id: sw
-          anchors.top: parent.top
-          anchors.left: parent.left
-          anchors.bottom: parent.bottom
-          width: 96
-          !text: tr('RUNES')
-        Button
-          id: btn
-          anchors.top: parent.top
-          anchors.bottom: parent.bottom
-          anchors.left: prev.right
-          anchors.right: parent.right
-          margin-left: 4
-          text: Configurar
-          color: #FFFFFF
-          background-color: #6E3AB2
-          font: cipsoftFont
-
-      Panel
-        id: rowTarget
-        anchors.top: prev.bottom
-        anchors.left: parent.left
-        anchors.right: parent.right
-        margin-top: 4
-        height: 20
-        BotSwitch
-          id: sw
-          anchors.top: parent.top
-          anchors.left: parent.left
-          anchors.bottom: parent.bottom
-          width: 96
-          !text: tr('TARGET')
-        Button
-          id: btn
-          anchors.top: parent.top
-          anchors.bottom: parent.bottom
-          anchors.left: prev.right
-          anchors.right: parent.right
-          margin-left: 4
-          text: Configurar
-          color: #FFFFFF
-          background-color: #B2743A
-          font: cipsoftFont
-
-      Panel
-        id: rowFollow
-        anchors.top: prev.bottom
-        anchors.left: parent.left
-        anchors.right: parent.right
-        margin-top: 4
-        height: 20
-        BotSwitch
-          id: sw
-          anchors.top: parent.top
-          anchors.left: parent.left
-          anchors.bottom: parent.bottom
-          width: 96
-          !text: tr('FOLLOW')
-        Button
-          id: btn
-          anchors.top: parent.top
-          anchors.bottom: parent.bottom
-          anchors.left: prev.right
-          anchors.right: parent.right
-          margin-left: 4
-          text: Configurar
-          color: #FFFFFF
-          background-color: #B2A03A
-          font: cipsoftFont
-
-      Panel
-        id: rowMcHunt
-        anchors.top: prev.bottom
-        anchors.left: parent.left
-        anchors.right: parent.right
-        margin-top: 4
-        height: 20
-        BotSwitch
-          id: sw
-          anchors.top: parent.top
-          anchors.left: parent.left
-          anchors.bottom: parent.bottom
-          width: 96
-          !text: tr('MC HUNT')
-        Button
-          id: btn
-          anchors.top: parent.top
-          anchors.bottom: parent.bottom
-          anchors.left: prev.right
-          anchors.right: parent.right
-          margin-left: 4
-          text: Configurar
-          color: #FFFFFF
-          background-color: #3AB2A0
-          font: cipsoftFont
-
-      Panel
-        id: rowAntiPk
-        anchors.top: prev.bottom
-        anchors.left: parent.left
-        anchors.right: parent.right
-        margin-top: 4
-        height: 20
-        BotSwitch
-          id: sw
-          anchors.top: parent.top
-          anchors.left: parent.left
-          anchors.bottom: parent.bottom
-          width: 96
-          !text: tr('ANTI-PK')
-        Button
-          id: btn
-          anchors.top: parent.top
-          anchors.bottom: parent.bottom
-          anchors.left: prev.right
-          anchors.right: parent.right
-          margin-left: 4
-          text: Configurar
-          color: #FFFFFF
-          background-color: #C83C3C
-          font: cipsoftFont
-    ]])
-    ui:setId(panelName)
-
-    -- estado visual del panel
-    ui.master:setOn(C.get("master.on", true))
-    ui.master.onClick = function(w)
-        local nuevo = not C.get("master.on", true); C.set("master.on", nuevo); w:setOn(nuevo)
+        C.ensure("vip.ex"..i..".on",    false)
+        C.ensure("vip.ex"..i..".spell", "")
+        C.ensure("vip.ex"..i..".cd",    5)
     end
+    C.ensure("vip.tgt.on",     false)
+    C.ensure("vip.tgt.range",  5)
+    C.ensure("vip.fol.on",     false)
+    C.ensure("vip.fol.leader", "")
+    C.ensure("vip.fol.dist",   2)
+    C.ensure("vip.mch.isLeader",   false)
+    C.ensure("vip.mch.leader",     "")
+    C.ensure("vip.mch.followSame", true)
+    C.ensure("vip.mch.crossFl",    true)
+    C.ensure("vip.pk.on",        true)
+    C.ensure("vip.pk.broadcast", true)
+    C.ensure("net.canal",        "rq")
 
-    local function bindRowSwitch(row, key)
-        row.sw:setOn(C.get(key, false))
-        row.sw.onClick = function(w)
-            local nuevo = not C.get(key, false); C.set(key, nuevo); w:setOn(nuevo)
+    -- INYECTAR PANEL --------------------------------------------------
+    local ui = setupUI([==[
+Panel
+  height: 990
+
+  Label
+    id: brand
+    anchors.top: parent.top
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text-align: center
+    text: RScriptz v1.0  [VIP]
+    font: verdana-11px-rounded
+    color: #D4AF37
+    background-color: #232323
+    height: 20
+
+  Label
+    id: netLbl
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text-align: center
+    text: Net: ...
+    color: #C83C3C
+    background-color: #1A1A1A
+    font: verdana-11px-rounded
+    height: 16
+
+  BotSwitch
+    id: master
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    margin-top: 4
+    height: 20
+    !text: tr('MASTER ON/OFF')
+
+  Label
+    id: vocLbl
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    text: Vocacion:
+    color: #C8C8C8
+    font: verdana-11px-rounded
+    height: 14
+    margin-top: 6
+    width: 60
+
+  ComboBox
+    id: voc
+    anchors.top: prev.top
+    anchors.left: prev.right
+    anchors.right: parent.right
+    margin-left: 4
+
+  Label
+    id: secHp
+    anchors.top: voc.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text-align: center
+    text: === POCIONES DE VIDA ===
+    color: #D4AF37
+    background-color: #1A1A1A
+    font: verdana-11px-rounded
+    height: 16
+    margin-top: 8
+
+  BotSwitch
+    id: hp1on
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    margin-top: 4
+    height: 18
+    width: 50
+    !text: tr('1')
+
+  BotItem
+    id: hp1item
+    anchors.top: prev.top
+    anchors.left: prev.right
+    margin-left: 4
+
+  Label
+    id: hp1txt
+    anchors.top: prev.top
+    anchors.left: prev.right
+    anchors.right: parent.right
+    text-align: right
+    text: HP<= 50%
+    color: #E8E8E8
+    font: verdana-11px-rounded
+    height: 14
+    margin-left: 6
+    margin-right: 2
+
+  HorizontalScrollBar
+    id: hp1pct
+    anchors.top: hp1item.bottom
+    anchors.left: hp1item.right
+    anchors.right: parent.right
+    minimum: 5
+    maximum: 100
+    step: 5
+    height: 12
+    margin-top: 2
+    margin-left: 6
+  BotSwitch
+    id: hp2on
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    margin-top: 4
+    height: 18
+    width: 50
+    !text: tr('2')
+
+  BotItem
+    id: hp2item
+    anchors.top: prev.top
+    anchors.left: prev.right
+    margin-left: 4
+
+  Label
+    id: hp2txt
+    anchors.top: prev.top
+    anchors.left: prev.right
+    anchors.right: parent.right
+    text-align: right
+    text: HP<= 50%
+    color: #E8E8E8
+    font: verdana-11px-rounded
+    height: 14
+    margin-left: 6
+    margin-right: 2
+
+  HorizontalScrollBar
+    id: hp2pct
+    anchors.top: hp2item.bottom
+    anchors.left: hp2item.right
+    anchors.right: parent.right
+    minimum: 5
+    maximum: 100
+    step: 5
+    height: 12
+    margin-top: 2
+    margin-left: 6
+  BotSwitch
+    id: hp3on
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    margin-top: 4
+    height: 18
+    width: 50
+    !text: tr('3')
+
+  BotItem
+    id: hp3item
+    anchors.top: prev.top
+    anchors.left: prev.right
+    margin-left: 4
+
+  Label
+    id: hp3txt
+    anchors.top: prev.top
+    anchors.left: prev.right
+    anchors.right: parent.right
+    text-align: right
+    text: HP<= 50%
+    color: #E8E8E8
+    font: verdana-11px-rounded
+    height: 14
+    margin-left: 6
+    margin-right: 2
+
+  HorizontalScrollBar
+    id: hp3pct
+    anchors.top: hp3item.bottom
+    anchors.left: hp3item.right
+    anchors.right: parent.right
+    minimum: 5
+    maximum: 100
+    step: 5
+    height: 12
+    margin-top: 2
+    margin-left: 6
+
+  Label
+    id: secMp
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text-align: center
+    text: === POCIONES DE MANA ===
+    color: #D4AF37
+    background-color: #1A1A1A
+    font: verdana-11px-rounded
+    height: 16
+    margin-top: 10
+
+  BotSwitch
+    id: mp1on
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    margin-top: 4
+    height: 18
+    width: 50
+    !text: tr('1')
+
+  BotItem
+    id: mp1item
+    anchors.top: prev.top
+    anchors.left: prev.right
+    margin-left: 4
+
+  Label
+    id: mp1txt
+    anchors.top: prev.top
+    anchors.left: prev.right
+    anchors.right: parent.right
+    text-align: right
+    text: MP<= 50%
+    color: #E8E8E8
+    font: verdana-11px-rounded
+    height: 14
+    margin-left: 6
+    margin-right: 2
+
+  HorizontalScrollBar
+    id: mp1pct
+    anchors.top: mp1item.bottom
+    anchors.left: mp1item.right
+    anchors.right: parent.right
+    minimum: 5
+    maximum: 100
+    step: 5
+    height: 12
+    margin-top: 2
+    margin-left: 6
+  BotSwitch
+    id: mp2on
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    margin-top: 4
+    height: 18
+    width: 50
+    !text: tr('2')
+
+  BotItem
+    id: mp2item
+    anchors.top: prev.top
+    anchors.left: prev.right
+    margin-left: 4
+
+  Label
+    id: mp2txt
+    anchors.top: prev.top
+    anchors.left: prev.right
+    anchors.right: parent.right
+    text-align: right
+    text: MP<= 50%
+    color: #E8E8E8
+    font: verdana-11px-rounded
+    height: 14
+    margin-left: 6
+    margin-right: 2
+
+  HorizontalScrollBar
+    id: mp2pct
+    anchors.top: mp2item.bottom
+    anchors.left: mp2item.right
+    anchors.right: parent.right
+    minimum: 5
+    maximum: 100
+    step: 5
+    height: 12
+    margin-top: 2
+    margin-left: 6
+  BotSwitch
+    id: mp3on
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    margin-top: 4
+    height: 18
+    width: 50
+    !text: tr('3')
+
+  BotItem
+    id: mp3item
+    anchors.top: prev.top
+    anchors.left: prev.right
+    margin-left: 4
+
+  Label
+    id: mp3txt
+    anchors.top: prev.top
+    anchors.left: prev.right
+    anchors.right: parent.right
+    text-align: right
+    text: MP<= 50%
+    color: #E8E8E8
+    font: verdana-11px-rounded
+    height: 14
+    margin-left: 6
+    margin-right: 2
+
+  HorizontalScrollBar
+    id: mp3pct
+    anchors.top: mp3item.bottom
+    anchors.left: mp3item.right
+    anchors.right: parent.right
+    minimum: 5
+    maximum: 100
+    step: 5
+    height: 12
+    margin-top: 2
+    margin-left: 6
+
+  Label
+    id: secAtk
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text-align: center
+    text: === SPELLS DE ATAQUE ===
+    color: #D4AF37
+    background-color: #1A1A1A
+    font: verdana-11px-rounded
+    height: 16
+    margin-top: 10
+
+  BotSwitch
+    id: atk1on
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    margin-top: 4
+    height: 18
+    width: 30
+    !text: tr('1')
+
+  ComboBox
+    id: atk1spell
+    anchors.top: prev.top
+    anchors.left: prev.right
+    anchors.right: parent.horizontalCenter
+    margin-left: 4
+
+  Label
+    id: atk1txt
+    anchors.top: prev.top
+    anchors.left: parent.horizontalCenter
+    anchors.right: parent.right
+    text-align: right
+    text: cada 2000 ms
+    color: #E8E8E8
+    font: verdana-11px-rounded
+    height: 14
+    margin-left: 6
+    margin-right: 2
+
+  HorizontalScrollBar
+    id: atk1cd
+    anchors.top: atk1spell.bottom
+    anchors.left: atk1spell.left
+    anchors.right: parent.right
+    minimum: 500
+    maximum: 8000
+    step: 100
+    height: 12
+    margin-top: 2
+  BotSwitch
+    id: atk2on
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    margin-top: 4
+    height: 18
+    width: 30
+    !text: tr('2')
+
+  ComboBox
+    id: atk2spell
+    anchors.top: prev.top
+    anchors.left: prev.right
+    anchors.right: parent.horizontalCenter
+    margin-left: 4
+
+  Label
+    id: atk2txt
+    anchors.top: prev.top
+    anchors.left: parent.horizontalCenter
+    anchors.right: parent.right
+    text-align: right
+    text: cada 2000 ms
+    color: #E8E8E8
+    font: verdana-11px-rounded
+    height: 14
+    margin-left: 6
+    margin-right: 2
+
+  HorizontalScrollBar
+    id: atk2cd
+    anchors.top: atk2spell.bottom
+    anchors.left: atk2spell.left
+    anchors.right: parent.right
+    minimum: 500
+    maximum: 8000
+    step: 100
+    height: 12
+    margin-top: 2
+  BotSwitch
+    id: atk3on
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    margin-top: 4
+    height: 18
+    width: 30
+    !text: tr('3')
+
+  ComboBox
+    id: atk3spell
+    anchors.top: prev.top
+    anchors.left: prev.right
+    anchors.right: parent.horizontalCenter
+    margin-left: 4
+
+  Label
+    id: atk3txt
+    anchors.top: prev.top
+    anchors.left: parent.horizontalCenter
+    anchors.right: parent.right
+    text-align: right
+    text: cada 2000 ms
+    color: #E8E8E8
+    font: verdana-11px-rounded
+    height: 14
+    margin-left: 6
+    margin-right: 2
+
+  HorizontalScrollBar
+    id: atk3cd
+    anchors.top: atk3spell.bottom
+    anchors.left: atk3spell.left
+    anchors.right: parent.right
+    minimum: 500
+    maximum: 8000
+    step: 100
+    height: 12
+    margin-top: 2
+
+  Label
+    id: secEx
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text-align: center
+    text: === EXTRAS (spells custom) ===
+    color: #D4AF37
+    background-color: #1A1A1A
+    font: verdana-11px-rounded
+    height: 16
+    margin-top: 10
+
+  BotSwitch
+    id: ex1on
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    margin-top: 4
+    height: 18
+    width: 30
+    !text: tr('1')
+
+  TextEdit
+    id: ex1spell
+    anchors.top: prev.top
+    anchors.left: prev.right
+    anchors.right: parent.horizontalCenter
+    margin-left: 4
+
+  Label
+    id: ex1txt
+    anchors.top: prev.top
+    anchors.left: parent.horizontalCenter
+    anchors.right: parent.right
+    text-align: right
+    text: cada 5 seg
+    color: #E8E8E8
+    font: verdana-11px-rounded
+    height: 14
+    margin-left: 6
+    margin-right: 2
+
+  HorizontalScrollBar
+    id: ex1cd
+    anchors.top: ex1spell.bottom
+    anchors.left: ex1spell.left
+    anchors.right: parent.right
+    minimum: 1
+    maximum: 120
+    step: 1
+    height: 12
+    margin-top: 2
+  BotSwitch
+    id: ex2on
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    margin-top: 4
+    height: 18
+    width: 30
+    !text: tr('2')
+
+  TextEdit
+    id: ex2spell
+    anchors.top: prev.top
+    anchors.left: prev.right
+    anchors.right: parent.horizontalCenter
+    margin-left: 4
+
+  Label
+    id: ex2txt
+    anchors.top: prev.top
+    anchors.left: parent.horizontalCenter
+    anchors.right: parent.right
+    text-align: right
+    text: cada 5 seg
+    color: #E8E8E8
+    font: verdana-11px-rounded
+    height: 14
+    margin-left: 6
+    margin-right: 2
+
+  HorizontalScrollBar
+    id: ex2cd
+    anchors.top: ex2spell.bottom
+    anchors.left: ex2spell.left
+    anchors.right: parent.right
+    minimum: 1
+    maximum: 120
+    step: 1
+    height: 12
+    margin-top: 2
+  BotSwitch
+    id: ex3on
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    margin-top: 4
+    height: 18
+    width: 30
+    !text: tr('3')
+
+  TextEdit
+    id: ex3spell
+    anchors.top: prev.top
+    anchors.left: prev.right
+    anchors.right: parent.horizontalCenter
+    margin-left: 4
+
+  Label
+    id: ex3txt
+    anchors.top: prev.top
+    anchors.left: parent.horizontalCenter
+    anchors.right: parent.right
+    text-align: right
+    text: cada 5 seg
+    color: #E8E8E8
+    font: verdana-11px-rounded
+    height: 14
+    margin-left: 6
+    margin-right: 2
+
+  HorizontalScrollBar
+    id: ex3cd
+    anchors.top: ex3spell.bottom
+    anchors.left: ex3spell.left
+    anchors.right: parent.right
+    minimum: 1
+    maximum: 120
+    step: 1
+    height: 12
+    margin-top: 2
+
+  Label
+    id: secTgt
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text-align: center
+    text: === AUTO-TARGET ===
+    color: #D4AF37
+    background-color: #1A1A1A
+    font: verdana-11px-rounded
+    height: 16
+    margin-top: 10
+
+  BotSwitch
+    id: tgtOn
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    margin-top: 4
+    height: 18
+    !text: tr('Atacar monstruo mas cercano')
+
+  Label
+    id: tgtRngText
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text-align: center
+    text: Rango: 5 tiles
+    color: #E8E8E8
+    font: verdana-11px-rounded
+    height: 14
+    margin-top: 4
+
+  HorizontalScrollBar
+    id: tgtRange
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    minimum: 1
+    maximum: 10
+    step: 1
+    height: 14
+
+  Label
+    id: secFol
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text-align: center
+    text: === FOLLOW (leader) ===
+    color: #D4AF37
+    background-color: #1A1A1A
+    font: verdana-11px-rounded
+    height: 16
+    margin-top: 10
+
+  BotSwitch
+    id: folOn
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    margin-top: 4
+    height: 18
+    !text: tr('Seguir a jugador (findPath)')
+
+  Label
+    id: folLdrLbl
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    text: Leader:
+    color: #C8C8C8
+    font: verdana-11px-rounded
+    height: 14
+    margin-top: 4
+    width: 50
+
+  TextEdit
+    id: folLeader
+    anchors.top: prev.top
+    anchors.left: prev.right
+    anchors.right: parent.right
+    margin-left: 4
+
+  Label
+    id: folDistText
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text-align: center
+    text: Distancia max: 2
+    color: #E8E8E8
+    font: verdana-11px-rounded
+    height: 14
+    margin-top: 4
+
+  HorizontalScrollBar
+    id: folDist
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    minimum: 1
+    maximum: 8
+    step: 1
+    height: 14
+
+  Label
+    id: secMch
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text-align: center
+    text: === MC HUNT (multi-cuenta) ===
+    color: #D4AF37
+    background-color: #1A1A1A
+    font: verdana-11px-rounded
+    height: 16
+    margin-top: 10
+
+  BotSwitch
+    id: mchIsLeader
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    margin-top: 4
+    height: 18
+    !text: tr('Yo soy el LEADER')
+
+  Label
+    id: mchLdrLbl
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    text: Leader:
+    color: #C8C8C8
+    font: verdana-11px-rounded
+    height: 14
+    margin-top: 4
+    width: 50
+
+  TextEdit
+    id: mchLeader
+    anchors.top: prev.top
+    anchors.left: prev.right
+    anchors.right: parent.right
+    margin-left: 4
+
+  BotSwitch
+    id: mchFollow
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    margin-top: 4
+    height: 18
+    !text: tr('MCs siguen mismo piso')
+
+  BotSwitch
+    id: mchCross
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    margin-top: 2
+    height: 18
+    !text: tr('MCs cruzan piso (escaleras)')
+
+  Label
+    id: secPk
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text-align: center
+    text: === ANTI-PK ===
+    color: #D4AF37
+    background-color: #1A1A1A
+    font: verdana-11px-rounded
+    height: 16
+    margin-top: 10
+
+  BotSwitch
+    id: pkOn
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    margin-top: 4
+    height: 18
+    !text: tr('Alertar players desconocidos')
+
+  BotSwitch
+    id: pkBroadcast
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    margin-top: 2
+    height: 18
+    !text: tr('Avisar a MCs por el hub')
+
+  Label
+    id: secHub
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text-align: center
+    text: === HUB (conexion MCs) ===
+    color: #D4AF37
+    background-color: #1A1A1A
+    font: verdana-11px-rounded
+    height: 16
+    margin-top: 10
+
+  Label
+    id: hubCanalLbl
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    text: Canal:
+    color: #C8C8C8
+    font: verdana-11px-rounded
+    height: 14
+    margin-top: 4
+    width: 50
+
+  TextEdit
+    id: hubCanal
+    anchors.top: prev.top
+    anchors.left: prev.right
+    anchors.right: parent.right
+    margin-left: 4
+
+  Button
+    id: hubReconnect
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text: Reconectar al hub
+    font: cipsoftFont
+    color: #FFFFFF
+    background-color: #326432
+    height: 20
+    margin-top: 4
+]==])
+
+    RQ._vipPanel = ui
+
+    -- helpers ---------------------------------------------------------
+    local function fillCombo(combo, opts, current)
+        pcall(function() combo:clearOptions() end)
+        for _, o in ipairs(opts) do pcall(function() combo:addOption(o) end) end
+        if current then pcall(function() combo:setCurrentOption(current) end) end
+    end
+    local function bindSwitch(w, key, def)
+        w:setOn(C.get(key, def))
+        w.onClick = function() local n = not C.get(key, def); C.set(key, n); w:setOn(n) end
+    end
+    local function bindItem(w, key, def)
+        pcall(function() w:setItemId(tonumber(C.get(key, def)) or def) end)
+        w.onItemChange = function(x) C.set(key, x:getItemId()) end
+    end
+    local function bindSlider(slider, label, key, def, fmt)
+        local function refresh() pcall(function() label:setText(fmt:format(C.get(key, def))) end) end
+        slider:setValue(C.get(key, def))
+        refresh()
+        slider.onValueChange = function(_, v) C.set(key, v); refresh() end
+    end
+    local function bindText(w, key, def)
+        pcall(function() w:setText(C.get(key, def) or "") end)
+        w.onTextChange = function(_, t) C.set(key, t or "") end
+    end
+    local function bindCombo(w, key)
+        w.onOptionChange = function(x)
+            local o = x:getCurrentOption()
+            if o and o.text then C.set(key, o.text) end
         end
     end
-    bindRowSwitch(ui.rowHeal,   "heal.on")
-    bindRowSwitch(ui.rowSpells, "spells.on")
-    bindRowSwitch(ui.rowRunes,  "runes.on")
-    bindRowSwitch(ui.rowTarget, "target.on")
-    bindRowSwitch(ui.rowFollow, "follow.on")
-    bindRowSwitch(ui.rowAntiPk, "antipk.on")
-    ui.rowMcHunt.sw:setOn(C.get("mchunt.isLeader", false))
-    ui.rowMcHunt.sw.onClick = function(w)
-        local nuevo = not C.get("mchunt.isLeader", false)
-        C.set("mchunt.isLeader", nuevo); w:setOn(nuevo)
-        RQ.Logger.info("MCHunt", nuevo and "AHORA soy LEADER" or "YA NO soy leader")
+
+    -- master + vocacion + net label ------------------------------------
+    bindSwitch(ui.master, "vip.master", true)
+    fillCombo(ui.voc, RQ.Catalog.vocations, C.get("vip.voc"))
+    ui.voc.onOptionChange = function(w)
+        local o = w:getCurrentOption(); local t = o and o.text or nil
+        if not t then return end
+        C.set("vip.voc", t)
+        -- refrescar combos de attack spells con la nueva vocacion
+        for i=1,3 do
+            fillCombo(ui["atk"..i.."spell"], RQ.Catalog.attackSpells[t] or {}, C.get("vip.atk"..i..".spell"))
+        end
     end
 
-    RQ.Scheduler.every("rq_net_label", 1000, function()
+    -- HP pots ----------------------------------------------------------
+    for i=1,3 do
+        bindSwitch(ui["hp"..i.."on"], "vip.hp"..i..".on", i==1)
+        bindItem(ui["hp"..i.."item"], "vip.hp"..i..".item", defHp[i])
+        bindSlider(ui["hp"..i.."pct"], ui["hp"..i.."txt"], "vip.hp"..i..".pct", defHpPct[i], "HP<= %d%%")
+    end
+
+    -- MP pots ----------------------------------------------------------
+    for i=1,3 do
+        bindSwitch(ui["mp"..i.."on"], "vip.mp"..i..".on", i==1)
+        bindItem(ui["mp"..i.."item"], "vip.mp"..i..".item", defMp[i])
+        bindSlider(ui["mp"..i.."pct"], ui["mp"..i.."txt"], "vip.mp"..i..".pct", defMpPct[i], "MP<= %d%%")
+    end
+
+    -- Attack spells ----------------------------------------------------
+    for i=1,3 do
+        bindSwitch(ui["atk"..i.."on"], "vip.atk"..i..".on", false)
+        fillCombo(ui["atk"..i.."spell"], RQ.Catalog.attackSpells[C.get("vip.voc")] or {}, C.get("vip.atk"..i..".spell"))
+        bindCombo(ui["atk"..i.."spell"], "vip.atk"..i..".spell")
+        bindSlider(ui["atk"..i.."cd"], ui["atk"..i.."txt"], "vip.atk"..i..".cd", 2000, "cada %d ms")
+    end
+
+    -- Extras -----------------------------------------------------------
+    for i=1,3 do
+        bindSwitch(ui["ex"..i.."on"], "vip.ex"..i..".on", false)
+        bindText(ui["ex"..i.."spell"], "vip.ex"..i..".spell", "")
+        bindSlider(ui["ex"..i.."cd"], ui["ex"..i.."txt"], "vip.ex"..i..".cd", 5, "cada %d seg")
+    end
+
+    -- Target -----------------------------------------------------------
+    bindSwitch(ui.tgtOn, "vip.tgt.on", false)
+    bindSlider(ui.tgtRange, ui.tgtRngText, "vip.tgt.range", 5, "Rango: %d tiles")
+
+    -- Follow -----------------------------------------------------------
+    bindSwitch(ui.folOn, "vip.fol.on", false)
+    bindText(ui.folLeader, "vip.fol.leader", "")
+    bindSlider(ui.folDist, ui.folDistText, "vip.fol.dist", 2, "Distancia max: %d")
+
+    -- MC Hunt ----------------------------------------------------------
+    bindSwitch(ui.mchIsLeader, "vip.mch.isLeader", false)
+    bindText(ui.mchLeader, "vip.mch.leader", "")
+    bindSwitch(ui.mchFollow, "vip.mch.followSame", true)
+    bindSwitch(ui.mchCross, "vip.mch.crossFl", true)
+
+    -- Anti-PK ----------------------------------------------------------
+    bindSwitch(ui.pkOn, "vip.pk.on", true)
+    bindSwitch(ui.pkBroadcast, "vip.pk.broadcast", true)
+
+    -- Hub --------------------------------------------------------------
+    bindText(ui.hubCanal, "net.canal", "rq")
+    ui.hubReconnect.onClick = function()
+        RQ.Net.connect(C.get("net.canal", "rq"))
+    end
+
+    -- Net label refresh ------------------------------------------------
+    RQ.Scheduler.every("rq_vip_netlbl", 1000, function()
         if not ui.netLbl then return end
-        if RQ.Net.conectado then
-            pcall(function()
+        pcall(function()
+            if RQ.Net.conectado then
                 ui.netLbl:setText("Net OK | "..RQ.Net.canal.." | tx="..RQ.Net.tx.." rx="..RQ.Net.rx)
                 ui.netLbl:setColor("#32DC64")
-            end)
-        else
-            pcall(function()
-                ui.netLbl:setText("Net OFF | ¿RQ_Hub.py corriendo?")
+            else
+                ui.netLbl:setText("Net OFF (¿RQ_Hub.py corriendo?)")
                 ui.netLbl:setColor("#C83C3C")
-            end)
-        end
+            end
+        end)
     end)
 
-    -- ==========================================================
-    --  HELPERS COMUNES DE LISTAS
-    -- ==========================================================
-    local function fillCombo(combo, opts, currentValue)
-        combo:clearOptions()
-        for _, o in ipairs(opts) do combo:addOption(o) end
-        if currentValue then pcall(function() combo:setCurrentOption(currentValue) end) end
-    end
-    local function fillComboItems(combo, lista, currentName)
-        combo:clearOptions()
-        for _, e in ipairs(lista) do combo:addOption(e.name) end
-        if currentName then pcall(function() combo:setCurrentOption(currentName) end) end
-    end
-
-    -- helper para listas: agrega una entry visual en un TextList
-    -- entry es una tabla con {enabled, ...} de config
-    -- fmt(entry) devuelve el texto que se muestra
-    -- onRemove(entry) borra la entry de la lista de config
-    local function addListRow(textList, entry, fmt, onRemove, entryClass)
-        local row = g_ui.createWidget(entryClass or "RQSpellEntry", textList)
-        row.enabled:setChecked(entry.enabled ~= false)
-        row.enabled.onClick = function(w)
-            entry.enabled = not entry.enabled
-            row.enabled:setChecked(entry.enabled)
-        end
-        row.remove.onClick = function()
-            onRemove(entry); row:destroy()
-        end
-        row:setText(fmt(entry))
-        return row
-    end
-
-    local rootWidget = g_ui.getRootWidget()
-
-    -- helper: aisla cada ventana. Si UNA falla al cablearse, las demas siguen
-    -- funcionando y el error se loguea, no se rompe el script entero.
-    local function protect(name, fn)
-        local ok, err = pcall(fn)
-        if not ok then
-            RQ.Logger.error("UI", name..": "..tostring(err))
-        end
-    end
-
-    -- ==========================================================
-    --  HUB WINDOW
-    -- ==========================================================
-    local hubWin
-    if rootWidget then protect("HubWindow", function()
-        hubWin = UI.createWindow('RScriptzHubWindow', rootWidget); hubWin:hide()
-        hubWin.closeButton.onClick = function() hubWin:hide() end
-        hubWin.channel:setText(C.get("net.canal", "rq"))
-        hubWin.url:setText(C.get("net.url", "http://127.0.0.1:9876"))
-        hubWin.channel.onTextChange = function(_, t) if t and t~="" then C.set("net.canal", t) end end
-        hubWin.url.onTextChange     = function(_, t) if t and t~="" then C.set("net.url", t); RQ.Net.setUrl(t) end end
-        hubWin.reconnect.onClick = function()
-            RQ.Net.setUrl(C.get("net.url", "http://127.0.0.1:9876"))
-            RQ.Net.connect(C.get("net.canal", "rq"))
-        end
-        RQ.Scheduler.every("rq_hub_status", 800, function()
-            if not hubWin or not hubWin:isVisible() then return end
-            pcall(function()
-                if RQ.Net.conectado then
-                    hubWin.status:setText("Net OK | canal "..RQ.Net.canal.." | tx="..RQ.Net.tx.." rx="..RQ.Net.rx)
-                    hubWin.status:setColor("#32DC64")
-                else
-                    hubWin.status:setText("Net OFF -- ¿RQ_Hub.py corriendo?")
-                    hubWin.status:setColor("#C83C3C")
-                end
-            end)
-        end)
-    end) end
-    ui.rowHub.btn.onClick = function() if hubWin then hubWin:show(); hubWin:raise(); hubWin:focus() end end
-
-    -- ==========================================================
-    --  HEALING WINDOW
-    -- ==========================================================
-    local healWin
-    if rootWidget then protect("HealingWindow", function()
-        healWin = UI.createWindow('RScriptzHealingWindow', rootWidget); healWin:hide()
-        healWin.closeButton.onClick = function() healWin:hide() end
-
-        -- vocacion + spell combo dinamico
-        fillCombo(healWin.voc, RQ.Catalog.vocations, C.get("heal.voc"))
-        local function refreshHealSpellCombo(voc)
-            fillCombo(healWin.spellName, RQ.Catalog.healSpells[voc] or {})
-        end
-        refreshHealSpellCombo(C.get("heal.voc"))
-        healWin.voc.onOptionChange = function(w)
-            local o = w:getCurrentOption(); local t = o and o.text or nil
-            if t then C.set("heal.voc", t); refreshHealSpellCombo(t) end
-        end
-
-        -- ---------- SECCION SPELLS ----------
-        local fmtSpell = function(e) return string.format("HP<=%d MP>=%d : %s", e.hpBelow or 0, e.minMp or 0, e.spell or "?") end
-        local function refreshSpells()
-            healWin.spellList:destroyChildren()
-            local lst = C.list("heal.spells")
-            for _, entry in ipairs(lst) do
-                addListRow(healWin.spellList, entry, fmtSpell,
-                    function(e)
-                        for i, x in ipairs(lst) do if x == e then table.remove(lst, i); return end end
-                    end)
-            end
-        end
-        refreshSpells()
-        healWin.spellHpBelow:setText("70")
-        healWin.spellMinMp:setText("15")
-        healWin.spellAdd.onClick = function()
-            local sName = healWin.spellName:getCurrentOption()
-            sName = sName and sName.text or nil
-            local hp = tonumber(healWin.spellHpBelow:getText())
-            local mp = tonumber(healWin.spellMinMp:getText())
-            if not sName or not hp or not mp then RQ.Logger.warn("Heal", "faltan campos"); return end
-            table.insert(C.list("heal.spells"), {enabled=true, spell=sName, hpBelow=hp, minMp=mp})
-            refreshSpells()
-        end
-        healWin.spellUp.onClick = function()
-            local sel = healWin.spellList:getFocusedChild(); if not sel then return end
-            local i = healWin.spellList:getChildIndex(sel); if i < 2 then return end
-            local lst = C.list("heal.spells"); lst[i], lst[i-1] = lst[i-1], lst[i]
-            healWin.spellList:moveChildToIndex(sel, i-1)
-        end
-        healWin.spellDown.onClick = function()
-            local sel = healWin.spellList:getFocusedChild(); if not sel then return end
-            local i = healWin.spellList:getChildIndex(sel)
-            if i >= healWin.spellList:getChildCount() then return end
-            local lst = C.list("heal.spells"); lst[i], lst[i+1] = lst[i+1], lst[i]
-            healWin.spellList:moveChildToIndex(sel, i+1)
-        end
-
-        -- ---------- SECCION HP POTS ----------
-        fillComboItems(healWin.hpPotName, RQ.Catalog.hpPots)
-        local fmtPotHp = function(e)
-            local nm = findNameById(RQ.Catalog.hpPots, e.itemId) or ("id "..tostring(e.itemId))
-            return string.format("HP<=%d : %s", e.hpBelow or 0, nm)
-        end
-        local function refreshHpPots()
-            healWin.hpList:destroyChildren()
-            local lst = C.list("heal.hpPots")
-            for _, entry in ipairs(lst) do
-                local row = addListRow(healWin.hpList, entry, fmtPotHp,
-                    function(e)
-                        for i, x in ipairs(lst) do if x == e then table.remove(lst, i); return end end
-                    end, "RQItemEntry")
-                pcall(function() row.preview:setItemId(entry.itemId or 0) end)
-            end
-        end
-        refreshHpPots()
-        healWin.hpBelow:setText("60")
-        healWin.hpAdd.onClick = function()
-            local opt = healWin.hpPotName:getCurrentOption()
-            local nm = opt and opt.text or nil
-            local hp = tonumber(healWin.hpBelow:getText())
-            if not nm or not hp then RQ.Logger.warn("Heal", "faltan campos"); return end
-            local id = findIdByName(RQ.Catalog.hpPots, nm) or 266
-            table.insert(C.list("heal.hpPots"), {enabled=true, itemId=id, hpBelow=hp})
-            refreshHpPots()
-        end
-        healWin.hpUp.onClick = function()
-            local sel = healWin.hpList:getFocusedChild(); if not sel then return end
-            local i = healWin.hpList:getChildIndex(sel); if i < 2 then return end
-            local lst = C.list("heal.hpPots"); lst[i], lst[i-1] = lst[i-1], lst[i]
-            healWin.hpList:moveChildToIndex(sel, i-1)
-        end
-        healWin.hpDown.onClick = function()
-            local sel = healWin.hpList:getFocusedChild(); if not sel then return end
-            local i = healWin.hpList:getChildIndex(sel)
-            if i >= healWin.hpList:getChildCount() then return end
-            local lst = C.list("heal.hpPots"); lst[i], lst[i+1] = lst[i+1], lst[i]
-            healWin.hpList:moveChildToIndex(sel, i+1)
-        end
-
-        -- ---------- SECCION MP POTS ----------
-        fillComboItems(healWin.mpPotName, RQ.Catalog.mpPots)
-        local fmtPotMp = function(e)
-            local nm = findNameById(RQ.Catalog.mpPots, e.itemId) or ("id "..tostring(e.itemId))
-            return string.format("MP<=%d : %s", e.mpBelow or 0, nm)
-        end
-        local function refreshMpPots()
-            healWin.mpList:destroyChildren()
-            local lst = C.list("heal.mpPots")
-            for _, entry in ipairs(lst) do
-                local row = addListRow(healWin.mpList, entry, fmtPotMp,
-                    function(e)
-                        for i, x in ipairs(lst) do if x == e then table.remove(lst, i); return end end
-                    end, "RQItemEntry")
-                pcall(function() row.preview:setItemId(entry.itemId or 0) end)
-            end
-        end
-        refreshMpPots()
-        healWin.mpBelow:setText("40")
-        healWin.mpAdd.onClick = function()
-            local opt = healWin.mpPotName:getCurrentOption()
-            local nm = opt and opt.text or nil
-            local mp = tonumber(healWin.mpBelow:getText())
-            if not nm or not mp then RQ.Logger.warn("Heal", "faltan campos"); return end
-            local id = findIdByName(RQ.Catalog.mpPots, nm) or 268
-            table.insert(C.list("heal.mpPots"), {enabled=true, itemId=id, mpBelow=mp})
-            refreshMpPots()
-        end
-        healWin.mpUp.onClick = function()
-            local sel = healWin.mpList:getFocusedChild(); if not sel then return end
-            local i = healWin.mpList:getChildIndex(sel); if i < 2 then return end
-            local lst = C.list("heal.mpPots"); lst[i], lst[i-1] = lst[i-1], lst[i]
-            healWin.mpList:moveChildToIndex(sel, i-1)
-        end
-        healWin.mpDown.onClick = function()
-            local sel = healWin.mpList:getFocusedChild(); if not sel then return end
-            local i = healWin.mpList:getChildIndex(sel)
-            if i >= healWin.mpList:getChildCount() then return end
-            local lst = C.list("heal.mpPots"); lst[i], lst[i+1] = lst[i+1], lst[i]
-            healWin.mpList:moveChildToIndex(sel, i+1)
-        end
-    end) end
-    ui.rowHeal.btn.onClick = function() if healWin then healWin:show(); healWin:raise(); healWin:focus() end end
-
-    -- ==========================================================
-    --  SPELLS WINDOW
-    -- ==========================================================
-    local spellsWin
-    if rootWidget then protect("SpellsWindow", function()
-        spellsWin = UI.createWindow('RScriptzSpellsWindow', rootWidget); spellsWin:hide()
-        spellsWin.closeButton.onClick = function() spellsWin:hide() end
-        fillCombo(spellsWin.voc, RQ.Catalog.vocations, C.get("spells.voc"))
-        local function refreshCombo(voc)
-            fillCombo(spellsWin.spellName, RQ.Catalog.attackSpells[voc] or {})
-        end
-        refreshCombo(C.get("spells.voc"))
-        spellsWin.voc.onOptionChange = function(w)
-            local o = w:getCurrentOption(); local t = o and o.text or nil
-            if t then C.set("spells.voc", t); refreshCombo(t) end
-        end
-        local fmt = function(e) return string.format("cada %dms MP>=%d : %s", e.cd or 0, e.minMana or 0, e.spell or "?") end
-        local function refresh()
-            spellsWin.list:destroyChildren()
-            local lst = C.list("spells.rules")
-            for _, entry in ipairs(lst) do
-                addListRow(spellsWin.list, entry, fmt,
-                    function(e) for i, x in ipairs(lst) do if x == e then table.remove(lst, i); return end end end)
-            end
-        end
-        refresh()
-        spellsWin.cd:setText("2000"); spellsWin.minMana:setText("60")
-        spellsWin.add.onClick = function()
-            local o = spellsWin.spellName:getCurrentOption(); local nm = o and o.text or nil
-            local cd = tonumber(spellsWin.cd:getText()); local mn = tonumber(spellsWin.minMana:getText())
-            if not nm or not cd or not mn then RQ.Logger.warn("Spells", "faltan campos"); return end
-            table.insert(C.list("spells.rules"), {enabled=true, spell=nm, cd=cd, minMana=mn})
-            refresh()
-        end
-        spellsWin.moveUp.onClick = function()
-            local sel = spellsWin.list:getFocusedChild(); if not sel then return end
-            local i = spellsWin.list:getChildIndex(sel); if i < 2 then return end
-            local lst = C.list("spells.rules"); lst[i], lst[i-1] = lst[i-1], lst[i]
-            spellsWin.list:moveChildToIndex(sel, i-1)
-        end
-        spellsWin.moveDown.onClick = function()
-            local sel = spellsWin.list:getFocusedChild(); if not sel then return end
-            local i = spellsWin.list:getChildIndex(sel)
-            if i >= spellsWin.list:getChildCount() then return end
-            local lst = C.list("spells.rules"); lst[i], lst[i+1] = lst[i+1], lst[i]
-            spellsWin.list:moveChildToIndex(sel, i+1)
-        end
-    end) end
-    ui.rowSpells.btn.onClick = function() if spellsWin then spellsWin:show(); spellsWin:raise(); spellsWin:focus() end end
-
-    -- ==========================================================
-    --  RUNES WINDOW
-    -- ==========================================================
-    local runesWin
-    if rootWidget then
-        runesWin = UI.createWindow('RScriptzRunesWindow', rootWidget); runesWin:hide()
-        runesWin.closeButton.onClick = function() runesWin:hide() end
-        fillComboItems(runesWin.runeName, RQ.Catalog.runes)
-        -- preview del combo
-        runesWin.runeName.onOptionChange = function(w)
-            local o = w:getCurrentOption(); local nm = o and o.text or nil
-            if nm then
-                local id = findIdByName(RQ.Catalog.runes, nm)
-                if id then runesWin.preview:setItemId(id) end
-            end
-        end
-        pcall(function()
-            local first = RQ.Catalog.runes[1]
-            if first then runesWin.preview:setItemId(first.id) end
-        end)
-        runesWin.onlyMonsters:setChecked(C.get("runes.onlyMons", true))
-        runesWin.onlyMonsters.onCheckChange = function(_, v) C.set("runes.onlyMons", v) end
-
-        local fmt = function(e) return string.format("cada %dms HPtgt>=%d : %s", e.cd or 0, e.minHp or 0, e.name or "?") end
-        local function refresh()
-            runesWin.list:destroyChildren()
-            local lst = C.list("runes.rules")
-            for _, entry in ipairs(lst) do
-                local row = addListRow(runesWin.list, entry, fmt,
-                    function(e) for i, x in ipairs(lst) do if x == e then table.remove(lst, i); return end end end,
-                    "RQItemEntry")
-                pcall(function() row.preview:setItemId(entry.itemId or 0) end)
-            end
-        end
-        refresh()
-        runesWin.cd:setText("1000"); runesWin.minHp:setText("30")
-        runesWin.add.onClick = function()
-            local o = runesWin.runeName:getCurrentOption(); local nm = o and o.text or nil
-            local cd = tonumber(runesWin.cd:getText()); local hp = tonumber(runesWin.minHp:getText())
-            if not nm or not cd or not hp then RQ.Logger.warn("Runes", "faltan campos"); return end
-            local id = findIdByName(RQ.Catalog.runes, nm)
-            if not id then RQ.Logger.warn("Runes", "rune no valida"); return end
-            table.insert(C.list("runes.rules"), {enabled=true, name=nm, itemId=id, cd=cd, minHp=hp})
-            refresh()
-        end
-        runesWin.moveUp.onClick = function()
-            local sel = runesWin.list:getFocusedChild(); if not sel then return end
-            local i = runesWin.list:getChildIndex(sel); if i < 2 then return end
-            local lst = C.list("runes.rules"); lst[i], lst[i-1] = lst[i-1], lst[i]
-            runesWin.list:moveChildToIndex(sel, i-1)
-        end
-        runesWin.moveDown.onClick = function()
-            local sel = runesWin.list:getFocusedChild(); if not sel then return end
-            local i = runesWin.list:getChildIndex(sel)
-            if i >= runesWin.list:getChildCount() then return end
-            local lst = C.list("runes.rules"); lst[i], lst[i+1] = lst[i+1], lst[i]
-            runesWin.list:moveChildToIndex(sel, i+1)
-        end
-    end
-    ui.rowRunes.btn.onClick = function() if runesWin then runesWin:show(); runesWin:raise(); runesWin:focus() end end
-
-    -- ==========================================================
-    --  TARGET WINDOW
-    -- ==========================================================
-    local targetWin
-    if rootWidget then
-        targetWin = UI.createWindow('RScriptzTargetWindow', rootWidget); targetWin:hide()
-        targetWin.closeButton.onClick = function() targetWin:hide() end
-        local function updRng()
-            targetWin.rangeText:setText("Rango maximo: "..C.get("target.range", 5).." tiles")
-        end
-        targetWin.range:setValue(C.get("target.range", 5)); updRng()
-        targetWin.range.onValueChange = function(_, v) C.set("target.range", v); updRng() end
-        targetWin.keepTarget:setChecked(C.get("target.keep", true))
-        targetWin.keepTarget.onCheckChange = function(_, v) C.set("target.keep", v) end
-        targetWin.preferLeader:setChecked(C.get("target.followLdr", false))
-        targetWin.preferLeader.onCheckChange = function(_, v) C.set("target.followLdr", v) end
-    end
-    ui.rowTarget.btn.onClick = function() if targetWin then targetWin:show(); targetWin:raise(); targetWin:focus() end end
-
-    -- ==========================================================
-    --  FOLLOW WINDOW
-    -- ==========================================================
-    local followWin
-    if rootWidget then
-        followWin = UI.createWindow('RScriptzFollowWindow', rootWidget); followWin:hide()
-        followWin.closeButton.onClick = function() followWin:hide() end
-        followWin.leader:setText(C.get("follow.leader", ""))
-        followWin.leader.onTextChange = function(_, t) C.set("follow.leader", t or "") end
-        local function updDist()
-            followWin.distText:setText("Distancia maxima al leader: "..C.get("follow.maxDist", 2).." tiles")
-        end
-        followWin.maxDist:setValue(C.get("follow.maxDist", 2)); updDist()
-        followWin.maxDist.onValueChange = function(_, v) C.set("follow.maxDist", v); updDist() end
-    end
-    ui.rowFollow.btn.onClick = function() if followWin then followWin:show(); followWin:raise(); followWin:focus() end end
-
-    -- ==========================================================
-    --  MC HUNT WINDOW
-    -- ==========================================================
-    local mchWin
-    if rootWidget then
-        mchWin = UI.createWindow('RScriptzMCHuntWindow', rootWidget); mchWin:hide()
-        mchWin.closeButton.onClick = function() mchWin:hide() end
-        mchWin.isLeader:setChecked(C.get("mchunt.isLeader", false))
-        mchWin.isLeader.onCheckChange = function(_, v)
-            C.set("mchunt.isLeader", v); ui.rowMcHunt.sw:setOn(v)
-        end
-        mchWin.leaderName:setText(C.get("mchunt.leader", ""))
-        mchWin.leaderName.onTextChange = function(_, t) C.set("mchunt.leader", t or "") end
-        local function updPub()
-            mchWin.pubText:setText("Frecuencia de publicacion: "..C.get("mchunt.pubMs", 500).." ms")
-        end
-        mchWin.pubMs:setValue(C.get("mchunt.pubMs", 500)); updPub()
-        mchWin.pubMs.onValueChange = function(_, v) C.set("mchunt.pubMs", v); updPub() end
-        mchWin.followOnSameFloor:setChecked(C.get("mchunt.followSame", true))
-        mchWin.followOnSameFloor.onCheckChange = function(_, v) C.set("mchunt.followSame", v) end
-        mchWin.crossFloors:setChecked(C.get("mchunt.crossFl", true))
-        mchWin.crossFloors.onCheckChange = function(_, v) C.set("mchunt.crossFl", v) end
-        mchWin.shareTarget:setChecked(C.get("mchunt.shareTgt", false))
-        mchWin.shareTarget.onCheckChange = function(_, v) C.set("mchunt.shareTgt", v) end
-    end
-    ui.rowMcHunt.btn.onClick = function() if mchWin then mchWin:show(); mchWin:raise(); mchWin:focus() end end
-
-    -- ==========================================================
-    --  ANTI-PK WINDOW
-    -- ==========================================================
-    local pkWin
-    if rootWidget then
-        pkWin = UI.createWindow('RScriptzAntiPKWindow', rootWidget); pkWin:hide()
-        pkWin.closeButton.onClick = function() pkWin:hide() end
-        pkWin.broadcast:setChecked(C.get("antipk.broadcast", true))
-        pkWin.broadcast.onCheckChange = function(_, v) C.set("antipk.broadcast", v) end
-        pkWin.playSound:setChecked(C.get("antipk.sound", true))
-        pkWin.playSound.onCheckChange = function(_, v) C.set("antipk.sound", v) end
-
-        local function refresh()
-            pkWin.list:destroyChildren()
-            local lst = C.list("antipk.friends")
-            for _, entry in ipairs(lst) do
-                local row = g_ui.createWidget("RQNameEntry", pkWin.list)
-                row:setText(entry.name or "?")
-                row.remove.onClick = function()
-                    for i, x in ipairs(lst) do if x == entry then table.remove(lst, i); break end end
-                    row:destroy()
-                end
-            end
-        end
-        refresh()
-        pkWin.add.onClick = function()
-            local nm = pkWin.nameInput:getText()
-            if not nm or nm == "" then return end
-            nm = nm:gsub("^%s+",""):gsub("%s+$","")
-            table.insert(C.list("antipk.friends"), {name=nm})
-            pkWin.nameInput:setText("")
-            refresh()
-        end
-    end
-    ui.rowAntiPk.btn.onClick = function() if pkWin then pkWin:show(); pkWin:raise(); pkWin:focus() end end
-
-    -- ==========================================================
-    --  MOTORES (macros)
-    -- ==========================================================
-
-    -- HEALING: recorrer lista de spells
-    macro(200, "RScriptz: Healing spells", function()
-        if not C.get("master.on", true) then return end
-        if not C.get("heal.on", true) then return end
-        local hp = RQ.Game.hp(); local mp = RQ.Game.mana()
-        for _, r in ipairs(C.list("heal.spells")) do
-            if r.enabled and hp <= (r.hpBelow or 0) and mp >= (r.minMp or 0) then
-                cast(r.spell, 900); return
-            end
-        end
-    end)
-
-    -- HEALING: pociones HP
-    macro(200, "RScriptz: Healing HP pots", function()
-        if not C.get("master.on", true) then return end
-        if not C.get("heal.on", true) then return end
+    -- MACROS -----------------------------------------------------------
+    -- pociones HP: recorre 3 en orden, usa la primera que aplica
+    macro(200, "RScriptz VIP: HP pots", function()
+        if RQ.tier ~= "VIP" or not C.get("vip.master", true) then return end
         local hp = RQ.Game.hp()
-        for _, r in ipairs(C.list("heal.hpPots")) do
-            if r.enabled and hp <= (r.hpBelow or 0) then
-                useOnYourself(tonumber(r.itemId) or 266); return
+        for i=1,3 do
+            if C.get("vip.hp"..i..".on") and hp <= (tonumber(C.get("vip.hp"..i..".pct")) or 0) then
+                safeUseSelf(C.get("vip.hp"..i..".item"))
+                return
             end
         end
     end)
 
-    -- HEALING: pociones MP
-    macro(200, "RScriptz: Healing MP pots", function()
-        if not C.get("master.on", true) then return end
-        if not C.get("heal.on", true) then return end
+    -- pociones MP: igual
+    macro(200, "RScriptz VIP: MP pots", function()
+        if RQ.tier ~= "VIP" or not C.get("vip.master", true) then return end
         local mp = RQ.Game.mana()
-        for _, r in ipairs(C.list("heal.mpPots")) do
-            if r.enabled and mp <= (r.mpBelow or 0) then
-                useOnYourself(tonumber(r.itemId) or 268); return
+        for i=1,3 do
+            if C.get("vip.mp"..i..".on") and mp <= (tonumber(C.get("vip.mp"..i..".pct")) or 0) then
+                safeUseSelf(C.get("vip.mp"..i..".item"))
+                return
             end
         end
     end)
 
-    -- SPELLS ATAQUE: recorrer lista, con cooldown por regla
-    local lastSpellCast = {}
-    macro(200, "RScriptz: Attack spells", function()
-        if not C.get("master.on", true) then return end
-        if not C.get("spells.on", false) then return end
+    -- attack spells: recorren y castean el primero que aplique con su cd
+    local lastAtk = {0,0,0}
+    macro(200, "RScriptz VIP: Attack spells", function()
+        if RQ.tier ~= "VIP" or not C.get("vip.master", true) then return end
         if not getAttackingCreature() then return end
-        local mp = RQ.Game.mana()
-        local nowMs = g_clock.millis()
-        for i, r in ipairs(C.list("spells.rules")) do
-            if r.enabled and mp >= (r.minMana or 0) then
-                local key = "s"..i.."_"..(r.spell or "")
-                local last = lastSpellCast[key] or 0
-                if nowMs - last >= (r.cd or 2000) then
-                    say(r.spell); lastSpellCast[key] = nowMs; return
+        local now = os.time() * 1000
+        for i=1,3 do
+            if C.get("vip.atk"..i..".on") then
+                local cd = tonumber(C.get("vip.atk"..i..".cd")) or 2000
+                if now - lastAtk[i] >= cd then
+                    safeCast(C.get("vip.atk"..i..".spell") or "")
+                    lastAtk[i] = now
+                    return
                 end
             end
         end
     end)
 
-    -- RUNES: recorrer lista, cooldown por regla
-    local lastRuneUse = {}
-    macro(200, "RScriptz: Runes", function()
-        if not C.get("master.on", true) then return end
-        if not C.get("runes.on", false) then return end
-        local tgt = getAttackingCreature(); if not tgt then return end
-        if C.get("runes.onlyMons", true) and tgt:isPlayer() then return end
-        local hpT = tgt:getHealthPercent()
-        local nowMs = g_clock.millis()
-        for i, r in ipairs(C.list("runes.rules")) do
-            if r.enabled and hpT >= (r.minHp or 0) then
-                local key = "r"..i.."_"..(r.itemId or 0)
-                local last = lastRuneUse[key] or 0
-                if nowMs - last >= (r.cd or 1000) then
-                    useWith(tonumber(r.itemId) or 3155, tgt); lastRuneUse[key] = nowMs; return
+    -- extras: spells custom con delay en segundos
+    local lastEx = {0,0,0}
+    macro(1000, "RScriptz VIP: Extras", function()
+        if RQ.tier ~= "VIP" or not C.get("vip.master", true) then return end
+        local now = os.time()
+        for i=1,3 do
+            local spell = C.get("vip.ex"..i..".spell") or ""
+            if C.get("vip.ex"..i..".on") and spell ~= "" then
+                local cd = tonumber(C.get("vip.ex"..i..".cd")) or 5
+                if now - lastEx[i] >= cd then
+                    safeCast(spell)
+                    lastEx[i] = now
                 end
             end
         end
     end)
 
-    -- TARGET AUTO
-    macro(500, "RScriptz: Auto Target", function()
-        if not C.get("master.on", true) then return end
-        if not C.get("target.on", false) then return end
-        local cur = getAttackingCreature()
-        if cur and C.get("target.keep", true) then return end
+    -- auto target
+    macro(500, "RScriptz VIP: Auto Target", function()
+        if RQ.tier ~= "VIP" or not C.get("vip.master", true) then return end
+        if not C.get("vip.tgt.on", false) then return end
+        if getAttackingCreature() then return end
         local miPos = RQ.Game.pos(); if not miPos then return end
-        local maxR = C.get("target.range", 5)
+        local maxR = tonumber(C.get("vip.tgt.range", 5)) or 5
         local mejor, mejorD = nil, 999
         for _, c in ipairs(RQ.Game.creatures()) do
             if c.isMonster and c.pos and c.pos.z == miPos.z then
@@ -2724,79 +2948,67 @@ rqSetupFullBot = function()
         if mejor and mejor.ref then pcall(function() attack(mejor.ref) end) end
     end)
 
-    -- FOLLOW
-    macro(300, "RScriptz: Follow", function()
-        if not C.get("master.on", true) then return end
-        if not C.get("follow.on", false) then return end
-        local nom = C.get("follow.leader", ""); if nom == "" then return end
+    -- follow
+    macro(300, "RScriptz VIP: Follow", function()
+        if RQ.tier ~= "VIP" or not C.get("vip.master", true) then return end
+        if not C.get("vip.fol.on", false) then return end
+        local nom = C.get("vip.fol.leader", "")
+        if nom == "" then return end
         local ldr = RQ.Game.jugadorPorNombre(nom); if not ldr or not ldr.pos then return end
-        local miPos = RQ.Game.pos(); if not miPos then return end
-        if ldr.pos.z ~= miPos.z then return end
+        local miPos = RQ.Game.pos(); if not miPos or ldr.pos.z ~= miPos.z then return end
         local d = RQ.Game.dist(miPos, ldr.pos)
-        if d > C.get("follow.maxDist", 2) then
-            if RQ.Game.hayCamino(ldr.pos, 20) then RQ.Game.irHacia(ldr.pos, 20) end
-        end
+        local maxD = tonumber(C.get("vip.fol.dist", 2)) or 2
+        if d > maxD and RQ.Game.hayCamino(ldr.pos, 20) then RQ.Game.irHacia(ldr.pos, 20) end
     end)
 
-    -- MC HUNT: publicar leader_pos
-    RQ.Scheduler.every("rq_mch_pub", 500, function()
-        if not C.get("master.on", true) then return end
-        if not C.get("mchunt.isLeader", false) then return end
+    -- MC hunt: publicar
+    RQ.Scheduler.every("rq_vip_mchpub", 500, function()
+        if RQ.tier ~= "VIP" or not C.get("vip.master", true) then return end
+        if not C.get("vip.mch.isLeader", false) then return end
         if not RQ.Net.conectado then return end
         local p = RQ.Game.pos(); if not p then return end
         RQ.Net.send("leader_pos", {x=p.x, y=p.y, z=p.z})
     end)
-
-    -- MC HUNT: cambio de piso
-    local ultimoZ = nil
-    RQ.Scheduler.every("rq_mch_cross", 200, function()
-        if not C.get("master.on", true) then return end
-        if not C.get("mchunt.isLeader", false) then return end
+    local lastZ = nil
+    RQ.Scheduler.every("rq_vip_mchcross", 200, function()
+        if RQ.tier ~= "VIP" or not C.get("vip.master", true) then return end
+        if not C.get("vip.mch.isLeader", false) then return end
         if not RQ.Net.conectado then return end
         local p = RQ.Game.pos(); if not p then return end
-        if ultimoZ and ultimoZ ~= p.z then
-            RQ.Net.send("leader_cross", {x=p.x, y=p.y, zOld=ultimoZ, zNew=p.z})
-            RQ.Logger.info("MCHunt", "publique cruce "..ultimoZ.."->"..p.z)
+        if lastZ and lastZ ~= p.z then
+            RQ.Net.send("leader_cross", {x=p.x, y=p.y, zOld=lastZ, zNew=p.z})
         end
-        ultimoZ = p.z
+        lastZ = p.z
     end)
-
-    RQ.Scheduler.every("rq_mch_pub_freq", 2000, function()
-        RQ.Scheduler.setInterval("rq_mch_pub", C.get("mchunt.pubMs", 500))
-    end)
-
     RQ.Net.on("leader_pos", function(from, data)
-        if not C.get("master.on", true) then return end
-        if C.get("mchunt.isLeader", false) then return end
-        if not C.get("mchunt.followSame", true) then return end
-        if C.get("mchunt.leader", "") ~= from then return end
+        if RQ.tier ~= "VIP" or not C.get("vip.master", true) then return end
+        if C.get("vip.mch.isLeader", false) then return end
+        if not C.get("vip.mch.followSame", true) then return end
+        if C.get("vip.mch.leader", "") ~= from then return end
         if not data or not data.x then return end
-        local miPos = RQ.Game.pos(); if not miPos then return end
-        if data.z == miPos.z then
-            local d = RQ.Game.dist(miPos, {x=data.x, y=data.y})
-            if d > 3 and RQ.Game.hayCamino({x=data.x, y=data.y, z=data.z}, 30) then
-                RQ.Game.irHacia({x=data.x, y=data.y, z=data.z}, 30)
-            end
+        local mi = RQ.Game.pos(); if not mi then return end
+        if data.z ~= mi.z then return end
+        local d = RQ.Game.dist(mi, {x=data.x, y=data.y})
+        if d > 3 and RQ.Game.hayCamino({x=data.x, y=data.y, z=data.z}, 30) then
+            RQ.Game.irHacia({x=data.x, y=data.y, z=data.z}, 30)
         end
     end)
-
     RQ.Net.on("leader_cross", function(from, data)
-        if not C.get("master.on", true) then return end
-        if C.get("mchunt.isLeader", false) then return end
-        if not C.get("mchunt.crossFl", true) then return end
-        if C.get("mchunt.leader", "") ~= from then return end
+        if RQ.tier ~= "VIP" or not C.get("vip.master", true) then return end
+        if C.get("vip.mch.isLeader", false) then return end
+        if not C.get("vip.mch.crossFl", true) then return end
+        if C.get("vip.mch.leader", "") ~= from then return end
         if not data or not data.x then return end
-        RQ.Logger.info("MCHunt", "leader "..from.." cruzo "..tostring(data.zOld).."->"..tostring(data.zNew))
-        local miPos = RQ.Game.pos(); if not miPos then return end
-        if miPos.z == data.zOld and RQ.Game.hayCamino({x=data.x, y=data.y, z=data.zOld}, 20) then
+        local mi = RQ.Game.pos(); if not mi then return end
+        if mi.z == data.zOld and RQ.Game.hayCamino({x=data.x, y=data.y, z=data.zOld}, 20) then
             RQ.Game.irHacia({x=data.x, y=data.y, z=data.zOld}, 20)
-            local key = "rq_mch_use_"..tostring(data.x).."_"..tostring(data.y)
+            local key = "rq_vip_use_"..data.x.."_"..data.y
             RQ.Scheduler.every(key, 400, function()
-                local ahora = RQ.Game.pos(); if not ahora then return end
-                if ahora.x == data.x and ahora.y == data.y then
+                local a = RQ.Game.pos()
+                if a and a.x == data.x and a.y == data.y then
                     pcall(function()
-                        local tile = g_map.getTile({x=data.x, y=data.y, z=ahora.z})
-                        if tile then use(tile) end
+                        local t = g_map.getTile({x=data.x, y=data.y, z=a.z})
+                        if t then use(t) end
                     end)
                     RQ.Scheduler.remove(key)
                 end
@@ -2804,78 +3016,51 @@ rqSetupFullBot = function()
         end
     end)
 
-    -- ANTI-PK
+    -- anti-PK
     local pksVistos = {}
-    local function esAmigo(nom)
-        for _, f in ipairs(C.list("antipk.friends")) do
-            if f.name == nom then return true end
-        end
-        return false
-    end
-
-    RQ.Scheduler.every("rq_antipk", 1000, function()
-        if not C.get("master.on", true) then return end
-        if not C.get("antipk.on", true) then return end
+    RQ.Scheduler.every("rq_vip_antipk", 1000, function()
+        if RQ.tier ~= "VIP" or not C.get("vip.master", true) then return end
+        if not C.get("vip.pk.on", true) then return end
         local yo = RQ.Game.name()
-        local mchLdr = C.get("mchunt.leader", "")
+        local ldr = C.get("vip.mch.leader", "")
         for _, c in ipairs(RQ.Game.creatures()) do
-            if c.isPlayer and c.name ~= yo and c.name ~= mchLdr and not esAmigo(c.name) then
+            if c.isPlayer and c.name ~= yo and c.name ~= ldr then
                 if not pksVistos[c.name] then
                     pksVistos[c.name] = os.time()
-                    RQ.Logger.warn("AntiPK", "ALERTA: "..c.name.." aparecio")
-                    if C.get("antipk.sound", true) then
-                        pcall(function() g_sounds:getChannel(1):play("/sounds/notification.ogg") end)
-                    end
-                    if C.get("antipk.broadcast", true) and RQ.Net.conectado then
+                    pcall(function() statusMessage("[RScriptz] ANTI-PK: "..c.name.." aparecio!") end)
+                    if C.get("vip.pk.broadcast", true) and RQ.Net.conectado then
                         RQ.Net.send("antipk_alert", {who=c.name})
                     end
                 end
             end
         end
-        for nom, ts in pairs(pksVistos) do
-            if os.time() - ts > 30 then pksVistos[nom] = nil end
+        for nm, ts in pairs(pksVistos) do
+            if os.time() - ts > 30 then pksVistos[nm] = nil end
         end
     end)
-
     RQ.Net.on("antipk_alert", function(from, data)
-        if not C.get("master.on", true) then return end
-        RQ.Logger.warn("AntiPK", "aviso de "..tostring(from)..": "..tostring(data.who))
+        if RQ.tier ~= "VIP" or not C.get("vip.master", true) then return end
+        pcall(function() statusMessage("[RScriptz] aviso "..tostring(from)..": "..tostring(data.who).." cerca!") end)
     end)
 
-    -- ==========================================================
-    --  ARRANQUE
-    -- ==========================================================
-    macro(50, "RScriptz Core (no apagar)", function() RQ.Scheduler.tick() end)
-
-    RQ.Scheduler.every("rq_net_autoconnect", 5000, function()
+    -- reloj + net
+    macro(50, "RScriptz Core", function() RQ.Scheduler.tick() end)
+    RQ.Scheduler.every("rq_vip_autoconn", 5000, function()
         if not RQ.Net.conectado then RQ.Net.connect(C.get("net.canal", "rq")) end
     end)
+    RQ.Scheduler.every("rq_vip_poll", 300, function() RQ.Net.poll() end)
 
-    RQ.Scheduler.every("rq_net_poll", 300, function() RQ.Net.poll() end)
-
-    pcall(function()
-        broadcastMessage("RScriptz v"..RQ.version.." CARGADO - "..RQ.Game.name())
-    end)
-    RQ.Logger.info("RScriptz", "listo v"..RQ.version.." - pestana RQ")
-
+    pcall(function() broadcastMessage("RScriptz v"..RQ.version.." VIP cargado - "..RQ.Game.name()) end)
+    RQ.Logger.info("RScriptz", "listo v"..RQ.version.." modo VIP")
 end
+
 
 -- ==========================================================
 --  ARRANQUE
 -- ==========================================================
+-- Ya no dependemos del .otui externo -- FREE y VIP se construyen inline
+-- con setupUI que funciona garantizado en Mayas OTC.
 
--- si el OTUI no cargo, VIP no puede correr (necesita las ventanas modales).
--- forzamos FREE (que usa solo widgets estandar via setupUI, sin depender del OTUI externo).
-if not _rqOtuiOk then
-    _rqSay("MODO FREE FORZADO -- ventanas VIP no disponibles sin OTUI")
-    _rqSay("(revisa los mensajes de arriba para saber por que fallo el OTUI)")
-    RQ.tier = "FREE"
-    local ok, err = pcall(rqSetupFreeBot)
-    if not ok then _rqSay("ERROR setup FREE: "..tostring(err)) end
-    return
-end
-
--- OTUI OK: seguimos con la logica normal de tier
 local savedTier = storage.rscriptz_tier
 local savedKey  = storage.rscriptz_key
 
