@@ -1916,55 +1916,107 @@ rqSetupFullBot = function()
     local C = RQ.Config
     local function safeCast(w) pcall(function() cast(w, 900) end) end
     local function safeUseSelf(id) pcall(function() useOnYourself(tonumber(id) or 0) end) end
-    local function safeUseWith(id, tgt) pcall(function() useWith(tonumber(id) or 0, tgt) end) end
 
-    -- vocacion inicial detectada
+    -- vocacion inicial
     local vocIni = "EK"
     pcall(function() vocIni = vocIdToName(player:getVocation() or 0) end)
 
-    -- defaults por primera vez
-    C.ensure("vip.voc", vocIni)
+    -- defaults
+    C.ensure("vip.voc",    vocIni)
     C.ensure("vip.master", true)
+    C.ensure("net.canal",  "rq")
+    C.ensure("net.url",    "http://127.0.0.1:9876")
 
-    local defHp  = {266,  239,  8473}   -- Health, Great, Supreme
-    local defMp  = {268,  238,  7642}   -- Mana, Great, Ultimate
+    local defHp    = {266, 239, 8473}
+    local defMp    = {268, 238, 7642}
     local defHpPct = {60, 40, 20}
     local defMpPct = {50, 30, 15}
     local vocAtk = RQ.Catalog.attackSpells[vocIni] or {"exori","exori mas","exori gran"}
     for i=1,3 do
-        C.ensure("vip.hp"..i..".on",   i==1)
-        C.ensure("vip.hp"..i..".item", defHp[i])
-        C.ensure("vip.hp"..i..".pct",  defHpPct[i])
-
-        C.ensure("vip.mp"..i..".on",   i==1)
-        C.ensure("vip.mp"..i..".item", defMp[i])
-        C.ensure("vip.mp"..i..".pct",  defMpPct[i])
-
+        C.ensure("vip.hp"..i..".on",     i==1)
+        C.ensure("vip.hp"..i..".mode",   true)  -- true=POT, false=SPELL
+        C.ensure("vip.hp"..i..".item",   defHp[i])
+        C.ensure("vip.hp"..i..".spell",  "")
+        C.ensure("vip.hp"..i..".pct",    defHpPct[i])
+        C.ensure("vip.mp"..i..".on",     i==1)
+        C.ensure("vip.mp"..i..".mode",   true)
+        C.ensure("vip.mp"..i..".item",   defMp[i])
+        C.ensure("vip.mp"..i..".spell",  "")
+        C.ensure("vip.mp"..i..".pct",    defMpPct[i])
         C.ensure("vip.atk"..i..".on",    false)
         C.ensure("vip.atk"..i..".spell", vocAtk[i] or vocAtk[1] or "exori")
         C.ensure("vip.atk"..i..".cd",    2000)
-
-        C.ensure("vip.ex"..i..".on",    false)
-        C.ensure("vip.ex"..i..".spell", "")
-        C.ensure("vip.ex"..i..".cd",    5)
+        C.ensure("vip.ex"..i..".on",     false)
+        C.ensure("vip.ex"..i..".spell",  "")
+        C.ensure("vip.ex"..i..".cd",     5)
     end
-    C.ensure("vip.tgt.on",     false)
-    C.ensure("vip.tgt.range",  5)
-    C.ensure("vip.fol.on",     false)
-    C.ensure("vip.fol.leader", "")
-    C.ensure("vip.fol.dist",   2)
+    C.ensure("vip.tgt.on",         false)
+    C.ensure("vip.tgt.range",      5)
+    C.ensure("vip.fol.on",         false)
+    C.ensure("vip.fol.leader",     "")
+    C.ensure("vip.fol.dist",       2)
     C.ensure("vip.mch.isLeader",   false)
     C.ensure("vip.mch.leader",     "")
     C.ensure("vip.mch.followSame", true)
     C.ensure("vip.mch.crossFl",    true)
-    C.ensure("vip.pk.on",        true)
-    C.ensure("vip.pk.broadcast", true)
-    C.ensure("net.canal",        "rq")
+    C.ensure("vip.pk.on",          true)
+    C.ensure("vip.pk.broadcast",   true)
 
-    -- INYECTAR PANEL --------------------------------------------------
-    local ui = setupUI([==[
+    -- ==================================================
+    -- HELPERS DE BINDING
+    -- ==================================================
+    local function bindSwitch(w, key, def)
+        if not w then return end
+        pcall(function() w:setOn(C.get(key, def) and true or false) end)
+        pcall(function() w.onClick = function()
+            local n = not C.get(key, def); C.set(key, n); pcall(function() w:setOn(n) end)
+        end end)
+    end
+    local function bindItem(w, key, def)
+        if not w then return end
+        pcall(function() w:setItemId(tonumber(C.get(key, def)) or tonumber(def) or 0) end)
+        pcall(function() w.onItemChange = function(x)
+            local id = 0; pcall(function() id = x:getItemId() end); C.set(key, id)
+        end end)
+    end
+    local function bindSlider(slider, label, key, def, fmt)
+        if not slider then return end
+        local function refresh()
+            pcall(function()
+                if label then label:setText(string.format(tostring(fmt or "%s"), C.get(key, def) or def or 0)) end
+            end)
+        end
+        pcall(function() slider:setValue(tonumber(C.get(key, def)) or tonumber(def) or 0) end)
+        refresh()
+        pcall(function() slider.onValueChange = function(_, v) C.set(key, v); refresh() end end)
+    end
+    local function bindText(w, key, def)
+        if not w then return end
+        pcall(function() w:setText(tostring(C.get(key, def) or "")) end)
+        pcall(function() w.onTextChange = function(_, t) C.set(key, t or "") end end)
+    end
+    local function fillCombo(combo, opts, current)
+        if not combo or not opts then return end
+        pcall(function() combo:clearOptions() end)
+        for _, o in ipairs(opts) do pcall(function() combo:addOption(tostring(o)) end) end
+        if current then pcall(function() combo:setCurrentOption(tostring(current)) end) end
+    end
+    local function bindCombo(w, key)
+        if not w then return end
+        pcall(function() w.onOptionChange = function(x)
+            local o; pcall(function() o = x:getCurrentOption() end)
+            if o and o.text then C.set(key, o.text) end
+        end end)
+    end
+
+    -- ==================================================
+    -- CONSTRUIR TODAS LAS PAGINAS (cada una en su setupUI)
+    -- Todas se crean pero solo el menu esta visible al inicio.
+    -- ==================================================
+    local pMenu = setupUI([==[
 Panel
-  height: 1200
+  id: pageMenu
+  height: 340
 
   Label
     id: brand
@@ -1995,713 +2047,1009 @@ Panel
     anchors.top: prev.bottom
     anchors.left: parent.left
     anchors.right: parent.right
-    margin-top: 6
+    margin-top: 4
     height: 22
     !text: tr('MASTER ON/OFF')
 
-  Panel
-    id: vocRow
+  Button
+    id: btnHub
     anchors.top: prev.bottom
     anchors.left: parent.left
     anchors.right: parent.right
-    margin-top: 8
+    margin-top: 6
+    height: 22
+    text: HUB (conexion MCs)
+    font: cipsoftFont
+    color: #FFFFFF
+    background-color: #326432
+
+  Button
+    id: btnCura
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    margin-top: 4
+    height: 22
+    text: CURACIONES (HP + MP)
+    font: cipsoftFont
+    color: #FFFFFF
+    background-color: #B23A48
+
+  Button
+    id: btnAtk
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    margin-top: 4
+    height: 22
+    text: SPELLS DE ATAQUE
+    font: cipsoftFont
+    color: #FFFFFF
+    background-color: #2E5AA0
+
+  Button
+    id: btnEx
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    margin-top: 4
+    height: 22
+    text: EXTRAS (spells custom)
+    font: cipsoftFont
+    color: #FFFFFF
+    background-color: #6E3AB2
+
+  Button
+    id: btnTgt
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    margin-top: 4
+    height: 22
+    text: AUTO-TARGET
+    font: cipsoftFont
+    color: #FFFFFF
+    background-color: #B2743A
+
+  Button
+    id: btnFol
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    margin-top: 4
+    height: 22
+    text: FOLLOW (leader)
+    font: cipsoftFont
+    color: #FFFFFF
+    background-color: #B2A03A
+
+  Button
+    id: btnMch
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    margin-top: 4
+    height: 22
+    text: MC HUNT (multi-cuenta)
+    font: cipsoftFont
+    color: #FFFFFF
+    background-color: #3AB2A0
+
+  Button
+    id: btnPk
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    margin-top: 4
+    height: 22
+    text: ANTI-PK
+    font: cipsoftFont
+    color: #FFFFFF
+    background-color: #C83C3C
+]==])
+    local pCura = setupUI([==[
+Panel
+  id: pageCura
+  height: 720
+
+  Button
+    id: btnBack
+    anchors.top: parent.top
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text: << Volver al menu
+    font: cipsoftFont
+    color: #FFFFFF
+    background-color: #555555
+    height: 22
+
+  Label
+    id: title
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text-align: center
+    text: CURACIONES
+    color: #D4AF37
+    background-color: #232323
+    font: verdana-11px-rounded
     height: 20
-
-    Label
-      id: vocLbl
-      anchors.left: parent.left
-      anchors.verticalCenter: parent.verticalCenter
-      text: Vocacion:
-      color: #C8C8C8
-      font: verdana-11px-rounded
-      height: 14
-      width: 60
-      margin-left: 4
-
-    ComboBox
-      id: voc
-      anchors.left: prev.right
-      anchors.right: parent.right
-      anchors.verticalCenter: parent.verticalCenter
-      margin-left: 6
-      margin-right: 4
+    margin-top: 4
 
   Label
-    id: secHp
-    anchors.top: vocRow.bottom
-    anchors.left: parent.left
-    anchors.right: parent.right
-    text-align: center
-    text: === POCIONES DE VIDA ===
-    color: #D4AF37
-    background-color: #1A1A1A
-    font: verdana-11px-rounded
-    height: 18
-    margin-top: 14
-
-  Panel
-    id: hp1row
-    anchors.top: prev.bottom
-    anchors.left: parent.left
-    anchors.right: parent.right
-    margin-top: 6
-    height: 36
-    background-color: #1D1D1D
-
-    BotSwitch
-      id: hp1on
-      anchors.left: parent.left
-      anchors.verticalCenter: parent.verticalCenter
-      margin-left: 3
-      width: 32
-      height: 20
-      !text: tr('1')
-
-    BotItem
-      id: hp1item
-      anchors.left: prev.right
-      anchors.verticalCenter: parent.verticalCenter
-      margin-left: 6
-
-    Label
-      id: hp1txt
-      anchors.top: parent.top
-      anchors.left: prev.right
-      anchors.right: parent.right
-      text-align: center
-      text: HP<= 50%
-      color: #E8E8E8
-      font: verdana-11px-rounded
-      height: 14
-      margin-top: 4
-      margin-left: 10
-      margin-right: 6
-
-    HorizontalScrollBar
-      id: hp1pct
-      anchors.bottom: parent.bottom
-      anchors.left: hp1txt.left
-      anchors.right: parent.right
-      minimum: 5
-      maximum: 100
-      step: 5
-      height: 14
-      margin-bottom: 3
-      margin-right: 6
-  Panel
-    id: hp2row
-    anchors.top: prev.bottom
-    anchors.left: parent.left
-    anchors.right: parent.right
-    margin-top: 6
-    height: 36
-    background-color: #1D1D1D
-
-    BotSwitch
-      id: hp2on
-      anchors.left: parent.left
-      anchors.verticalCenter: parent.verticalCenter
-      margin-left: 3
-      width: 32
-      height: 20
-      !text: tr('2')
-
-    BotItem
-      id: hp2item
-      anchors.left: prev.right
-      anchors.verticalCenter: parent.verticalCenter
-      margin-left: 6
-
-    Label
-      id: hp2txt
-      anchors.top: parent.top
-      anchors.left: prev.right
-      anchors.right: parent.right
-      text-align: center
-      text: HP<= 50%
-      color: #E8E8E8
-      font: verdana-11px-rounded
-      height: 14
-      margin-top: 4
-      margin-left: 10
-      margin-right: 6
-
-    HorizontalScrollBar
-      id: hp2pct
-      anchors.bottom: parent.bottom
-      anchors.left: hp2txt.left
-      anchors.right: parent.right
-      minimum: 5
-      maximum: 100
-      step: 5
-      height: 14
-      margin-bottom: 3
-      margin-right: 6
-  Panel
-    id: hp3row
-    anchors.top: prev.bottom
-    anchors.left: parent.left
-    anchors.right: parent.right
-    margin-top: 6
-    height: 36
-    background-color: #1D1D1D
-
-    BotSwitch
-      id: hp3on
-      anchors.left: parent.left
-      anchors.verticalCenter: parent.verticalCenter
-      margin-left: 3
-      width: 32
-      height: 20
-      !text: tr('3')
-
-    BotItem
-      id: hp3item
-      anchors.left: prev.right
-      anchors.verticalCenter: parent.verticalCenter
-      margin-left: 6
-
-    Label
-      id: hp3txt
-      anchors.top: parent.top
-      anchors.left: prev.right
-      anchors.right: parent.right
-      text-align: center
-      text: HP<= 50%
-      color: #E8E8E8
-      font: verdana-11px-rounded
-      height: 14
-      margin-top: 4
-      margin-left: 10
-      margin-right: 6
-
-    HorizontalScrollBar
-      id: hp3pct
-      anchors.bottom: parent.bottom
-      anchors.left: hp3txt.left
-      anchors.right: parent.right
-      minimum: 5
-      maximum: 100
-      step: 5
-      height: 14
-      margin-bottom: 3
-      margin-right: 6
-
-  Label
-    id: secMp
+    id: hpHdr
     anchors.top: prev.bottom
     anchors.left: parent.left
     anchors.right: parent.right
     text-align: center
-    text: === POCIONES DE MANA ===
+    text: === HP ===
     color: #D4AF37
     background-color: #1A1A1A
     font: verdana-11px-rounded
-    height: 18
-    margin-top: 14
-
-  Panel
-    id: mp1row
-    anchors.top: prev.bottom
-    anchors.left: parent.left
-    anchors.right: parent.right
-    margin-top: 6
-    height: 36
-    background-color: #1D1D1D
-
-    BotSwitch
-      id: mp1on
-      anchors.left: parent.left
-      anchors.verticalCenter: parent.verticalCenter
-      margin-left: 3
-      width: 32
-      height: 20
-      !text: tr('1')
-
-    BotItem
-      id: mp1item
-      anchors.left: prev.right
-      anchors.verticalCenter: parent.verticalCenter
-      margin-left: 6
-
-    Label
-      id: mp1txt
-      anchors.top: parent.top
-      anchors.left: prev.right
-      anchors.right: parent.right
-      text-align: center
-      text: MP<= 50%
-      color: #E8E8E8
-      font: verdana-11px-rounded
-      height: 14
-      margin-top: 4
-      margin-left: 10
-      margin-right: 6
-
-    HorizontalScrollBar
-      id: mp1pct
-      anchors.bottom: parent.bottom
-      anchors.left: mp1txt.left
-      anchors.right: parent.right
-      minimum: 5
-      maximum: 100
-      step: 5
-      height: 14
-      margin-bottom: 3
-      margin-right: 6
-  Panel
-    id: mp2row
-    anchors.top: prev.bottom
-    anchors.left: parent.left
-    anchors.right: parent.right
-    margin-top: 6
-    height: 36
-    background-color: #1D1D1D
-
-    BotSwitch
-      id: mp2on
-      anchors.left: parent.left
-      anchors.verticalCenter: parent.verticalCenter
-      margin-left: 3
-      width: 32
-      height: 20
-      !text: tr('2')
-
-    BotItem
-      id: mp2item
-      anchors.left: prev.right
-      anchors.verticalCenter: parent.verticalCenter
-      margin-left: 6
-
-    Label
-      id: mp2txt
-      anchors.top: parent.top
-      anchors.left: prev.right
-      anchors.right: parent.right
-      text-align: center
-      text: MP<= 50%
-      color: #E8E8E8
-      font: verdana-11px-rounded
-      height: 14
-      margin-top: 4
-      margin-left: 10
-      margin-right: 6
-
-    HorizontalScrollBar
-      id: mp2pct
-      anchors.bottom: parent.bottom
-      anchors.left: mp2txt.left
-      anchors.right: parent.right
-      minimum: 5
-      maximum: 100
-      step: 5
-      height: 14
-      margin-bottom: 3
-      margin-right: 6
-  Panel
-    id: mp3row
-    anchors.top: prev.bottom
-    anchors.left: parent.left
-    anchors.right: parent.right
-    margin-top: 6
-    height: 36
-    background-color: #1D1D1D
-
-    BotSwitch
-      id: mp3on
-      anchors.left: parent.left
-      anchors.verticalCenter: parent.verticalCenter
-      margin-left: 3
-      width: 32
-      height: 20
-      !text: tr('3')
-
-    BotItem
-      id: mp3item
-      anchors.left: prev.right
-      anchors.verticalCenter: parent.verticalCenter
-      margin-left: 6
-
-    Label
-      id: mp3txt
-      anchors.top: parent.top
-      anchors.left: prev.right
-      anchors.right: parent.right
-      text-align: center
-      text: MP<= 50%
-      color: #E8E8E8
-      font: verdana-11px-rounded
-      height: 14
-      margin-top: 4
-      margin-left: 10
-      margin-right: 6
-
-    HorizontalScrollBar
-      id: mp3pct
-      anchors.bottom: parent.bottom
-      anchors.left: mp3txt.left
-      anchors.right: parent.right
-      minimum: 5
-      maximum: 100
-      step: 5
-      height: 14
-      margin-bottom: 3
-      margin-right: 6
+    height: 16
+    margin-top: 8
 
   Label
-    id: secAtk
+    id: hp1sep
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text-align: left
+    text:   Slot 1
+    color: #C8C8C8
+    background-color: #1A1A1A
+    font: verdana-11px-rounded
+    height: 14
+    margin-top: 6
+
+  BotSwitch
+    id: hp1on
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    margin-top: 3
+    height: 20
+    width: 60
+    !text: tr('ON')
+
+  BotSwitch
+    id: hp1mode
+    anchors.top: prev.top
+    anchors.left: prev.right
+    anchors.bottom: prev.bottom
+    margin-left: 4
+    width: 60
+    !text: tr('POT')
+
+  BotItem
+    id: hp1item
+    anchors.top: prev.top
+    anchors.left: prev.right
+    margin-left: 8
+
+  TextEdit
+    id: hp1spell
+    anchors.top: hp1on.top
+    anchors.bottom: hp1on.bottom
+    anchors.left: hp1item.right
+    anchors.right: parent.right
+    margin-left: 6
+    margin-right: 4
+
+  Label
+    id: hp1txt
+    anchors.top: hp1on.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text-align: center
+    text: HP<= 50%
+    color: #E8E8E8
+    font: verdana-11px-rounded
+    height: 14
+    margin-top: 4
+
+  HorizontalScrollBar
+    id: hp1pct
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    minimum: 5
+    maximum: 100
+    step: 5
+    height: 14
+    margin-top: 2
+    margin-left: 4
+    margin-right: 4
+  Label
+    id: hp2sep
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text-align: left
+    text:   Slot 2
+    color: #C8C8C8
+    background-color: #1A1A1A
+    font: verdana-11px-rounded
+    height: 14
+    margin-top: 6
+
+  BotSwitch
+    id: hp2on
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    margin-top: 3
+    height: 20
+    width: 60
+    !text: tr('ON')
+
+  BotSwitch
+    id: hp2mode
+    anchors.top: prev.top
+    anchors.left: prev.right
+    anchors.bottom: prev.bottom
+    margin-left: 4
+    width: 60
+    !text: tr('POT')
+
+  BotItem
+    id: hp2item
+    anchors.top: prev.top
+    anchors.left: prev.right
+    margin-left: 8
+
+  TextEdit
+    id: hp2spell
+    anchors.top: hp2on.top
+    anchors.bottom: hp2on.bottom
+    anchors.left: hp2item.right
+    anchors.right: parent.right
+    margin-left: 6
+    margin-right: 4
+
+  Label
+    id: hp2txt
+    anchors.top: hp2on.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text-align: center
+    text: HP<= 50%
+    color: #E8E8E8
+    font: verdana-11px-rounded
+    height: 14
+    margin-top: 4
+
+  HorizontalScrollBar
+    id: hp2pct
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    minimum: 5
+    maximum: 100
+    step: 5
+    height: 14
+    margin-top: 2
+    margin-left: 4
+    margin-right: 4
+  Label
+    id: hp3sep
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text-align: left
+    text:   Slot 3
+    color: #C8C8C8
+    background-color: #1A1A1A
+    font: verdana-11px-rounded
+    height: 14
+    margin-top: 6
+
+  BotSwitch
+    id: hp3on
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    margin-top: 3
+    height: 20
+    width: 60
+    !text: tr('ON')
+
+  BotSwitch
+    id: hp3mode
+    anchors.top: prev.top
+    anchors.left: prev.right
+    anchors.bottom: prev.bottom
+    margin-left: 4
+    width: 60
+    !text: tr('POT')
+
+  BotItem
+    id: hp3item
+    anchors.top: prev.top
+    anchors.left: prev.right
+    margin-left: 8
+
+  TextEdit
+    id: hp3spell
+    anchors.top: hp3on.top
+    anchors.bottom: hp3on.bottom
+    anchors.left: hp3item.right
+    anchors.right: parent.right
+    margin-left: 6
+    margin-right: 4
+
+  Label
+    id: hp3txt
+    anchors.top: hp3on.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text-align: center
+    text: HP<= 50%
+    color: #E8E8E8
+    font: verdana-11px-rounded
+    height: 14
+    margin-top: 4
+
+  HorizontalScrollBar
+    id: hp3pct
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    minimum: 5
+    maximum: 100
+    step: 5
+    height: 14
+    margin-top: 2
+    margin-left: 4
+    margin-right: 4
+
+  Label
+    id: mpHdr
     anchors.top: prev.bottom
     anchors.left: parent.left
     anchors.right: parent.right
     text-align: center
-    text: === SPELLS DE ATAQUE ===
+    text: === MP ===
     color: #D4AF37
     background-color: #1A1A1A
     font: verdana-11px-rounded
-    height: 18
-    margin-top: 14
-
-  Panel
-    id: atk1row
-    anchors.top: prev.bottom
-    anchors.left: parent.left
-    anchors.right: parent.right
-    margin-top: 6
-    height: 40
-    background-color: #1D1D1D
-
-    BotSwitch
-      id: atk1on
-      anchors.left: parent.left
-      anchors.verticalCenter: parent.verticalCenter
-      margin-left: 3
-      width: 32
-      height: 20
-      !text: tr('1')
-
-    ComboBox
-      id: atk1spell
-      anchors.top: parent.top
-      anchors.left: prev.right
-      margin-left: 6
-      margin-top: 4
-      width: 120
-
-    Label
-      id: atk1txt
-      anchors.top: parent.top
-      anchors.left: prev.right
-      anchors.right: parent.right
-      text-align: center
-      text: cada 2000 ms
-      color: #E8E8E8
-      font: verdana-11px-rounded
-      height: 14
-      margin-top: 6
-      margin-left: 8
-      margin-right: 6
-
-    HorizontalScrollBar
-      id: atk1cd
-      anchors.bottom: parent.bottom
-      anchors.left: atk1spell.left
-      anchors.right: parent.right
-      minimum: 500
-      maximum: 8000
-      step: 100
-      height: 14
-      margin-bottom: 4
-      margin-right: 6
-  Panel
-    id: atk2row
-    anchors.top: prev.bottom
-    anchors.left: parent.left
-    anchors.right: parent.right
-    margin-top: 6
-    height: 40
-    background-color: #1D1D1D
-
-    BotSwitch
-      id: atk2on
-      anchors.left: parent.left
-      anchors.verticalCenter: parent.verticalCenter
-      margin-left: 3
-      width: 32
-      height: 20
-      !text: tr('2')
-
-    ComboBox
-      id: atk2spell
-      anchors.top: parent.top
-      anchors.left: prev.right
-      margin-left: 6
-      margin-top: 4
-      width: 120
-
-    Label
-      id: atk2txt
-      anchors.top: parent.top
-      anchors.left: prev.right
-      anchors.right: parent.right
-      text-align: center
-      text: cada 2000 ms
-      color: #E8E8E8
-      font: verdana-11px-rounded
-      height: 14
-      margin-top: 6
-      margin-left: 8
-      margin-right: 6
-
-    HorizontalScrollBar
-      id: atk2cd
-      anchors.bottom: parent.bottom
-      anchors.left: atk2spell.left
-      anchors.right: parent.right
-      minimum: 500
-      maximum: 8000
-      step: 100
-      height: 14
-      margin-bottom: 4
-      margin-right: 6
-  Panel
-    id: atk3row
-    anchors.top: prev.bottom
-    anchors.left: parent.left
-    anchors.right: parent.right
-    margin-top: 6
-    height: 40
-    background-color: #1D1D1D
-
-    BotSwitch
-      id: atk3on
-      anchors.left: parent.left
-      anchors.verticalCenter: parent.verticalCenter
-      margin-left: 3
-      width: 32
-      height: 20
-      !text: tr('3')
-
-    ComboBox
-      id: atk3spell
-      anchors.top: parent.top
-      anchors.left: prev.right
-      margin-left: 6
-      margin-top: 4
-      width: 120
-
-    Label
-      id: atk3txt
-      anchors.top: parent.top
-      anchors.left: prev.right
-      anchors.right: parent.right
-      text-align: center
-      text: cada 2000 ms
-      color: #E8E8E8
-      font: verdana-11px-rounded
-      height: 14
-      margin-top: 6
-      margin-left: 8
-      margin-right: 6
-
-    HorizontalScrollBar
-      id: atk3cd
-      anchors.bottom: parent.bottom
-      anchors.left: atk3spell.left
-      anchors.right: parent.right
-      minimum: 500
-      maximum: 8000
-      step: 100
-      height: 14
-      margin-bottom: 4
-      margin-right: 6
+    height: 16
+    margin-top: 10
 
   Label
-    id: secEx
+    id: mp1sep
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text-align: left
+    text:   Slot 1
+    color: #C8C8C8
+    background-color: #1A1A1A
+    font: verdana-11px-rounded
+    height: 14
+    margin-top: 6
+
+  BotSwitch
+    id: mp1on
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    margin-top: 3
+    height: 20
+    width: 60
+    !text: tr('ON')
+
+  BotSwitch
+    id: mp1mode
+    anchors.top: prev.top
+    anchors.left: prev.right
+    anchors.bottom: prev.bottom
+    margin-left: 4
+    width: 60
+    !text: tr('POT')
+
+  BotItem
+    id: mp1item
+    anchors.top: prev.top
+    anchors.left: prev.right
+    margin-left: 8
+
+  TextEdit
+    id: mp1spell
+    anchors.top: mp1on.top
+    anchors.bottom: mp1on.bottom
+    anchors.left: mp1item.right
+    anchors.right: parent.right
+    margin-left: 6
+    margin-right: 4
+
+  Label
+    id: mp1txt
+    anchors.top: mp1on.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text-align: center
+    text: MP<= 50%
+    color: #E8E8E8
+    font: verdana-11px-rounded
+    height: 14
+    margin-top: 4
+
+  HorizontalScrollBar
+    id: mp1pct
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    minimum: 5
+    maximum: 100
+    step: 5
+    height: 14
+    margin-top: 2
+    margin-left: 4
+    margin-right: 4
+  Label
+    id: mp2sep
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text-align: left
+    text:   Slot 2
+    color: #C8C8C8
+    background-color: #1A1A1A
+    font: verdana-11px-rounded
+    height: 14
+    margin-top: 6
+
+  BotSwitch
+    id: mp2on
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    margin-top: 3
+    height: 20
+    width: 60
+    !text: tr('ON')
+
+  BotSwitch
+    id: mp2mode
+    anchors.top: prev.top
+    anchors.left: prev.right
+    anchors.bottom: prev.bottom
+    margin-left: 4
+    width: 60
+    !text: tr('POT')
+
+  BotItem
+    id: mp2item
+    anchors.top: prev.top
+    anchors.left: prev.right
+    margin-left: 8
+
+  TextEdit
+    id: mp2spell
+    anchors.top: mp2on.top
+    anchors.bottom: mp2on.bottom
+    anchors.left: mp2item.right
+    anchors.right: parent.right
+    margin-left: 6
+    margin-right: 4
+
+  Label
+    id: mp2txt
+    anchors.top: mp2on.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text-align: center
+    text: MP<= 50%
+    color: #E8E8E8
+    font: verdana-11px-rounded
+    height: 14
+    margin-top: 4
+
+  HorizontalScrollBar
+    id: mp2pct
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    minimum: 5
+    maximum: 100
+    step: 5
+    height: 14
+    margin-top: 2
+    margin-left: 4
+    margin-right: 4
+  Label
+    id: mp3sep
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text-align: left
+    text:   Slot 3
+    color: #C8C8C8
+    background-color: #1A1A1A
+    font: verdana-11px-rounded
+    height: 14
+    margin-top: 6
+
+  BotSwitch
+    id: mp3on
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    margin-top: 3
+    height: 20
+    width: 60
+    !text: tr('ON')
+
+  BotSwitch
+    id: mp3mode
+    anchors.top: prev.top
+    anchors.left: prev.right
+    anchors.bottom: prev.bottom
+    margin-left: 4
+    width: 60
+    !text: tr('POT')
+
+  BotItem
+    id: mp3item
+    anchors.top: prev.top
+    anchors.left: prev.right
+    margin-left: 8
+
+  TextEdit
+    id: mp3spell
+    anchors.top: mp3on.top
+    anchors.bottom: mp3on.bottom
+    anchors.left: mp3item.right
+    anchors.right: parent.right
+    margin-left: 6
+    margin-right: 4
+
+  Label
+    id: mp3txt
+    anchors.top: mp3on.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text-align: center
+    text: MP<= 50%
+    color: #E8E8E8
+    font: verdana-11px-rounded
+    height: 14
+    margin-top: 4
+
+  HorizontalScrollBar
+    id: mp3pct
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    minimum: 5
+    maximum: 100
+    step: 5
+    height: 14
+    margin-top: 2
+    margin-left: 4
+    margin-right: 4
+]==]); pcall(function() pCura:hide() end)
+    local pAtk  = setupUI([==[
+Panel
+  id: pageAtk
+  height: 400
+
+  Button
+    id: btnBack
+    anchors.top: parent.top
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text: << Volver al menu
+    font: cipsoftFont
+    color: #FFFFFF
+    background-color: #555555
+    height: 22
+
+  Label
+    id: title
     anchors.top: prev.bottom
     anchors.left: parent.left
     anchors.right: parent.right
     text-align: center
-    text: === EXTRAS (spells custom) ===
+    text: SPELLS DE ATAQUE
     color: #D4AF37
-    background-color: #1A1A1A
+    background-color: #232323
     font: verdana-11px-rounded
-    height: 18
-    margin-top: 14
-
-  Panel
-    id: ex1row
-    anchors.top: prev.bottom
-    anchors.left: parent.left
-    anchors.right: parent.right
-    margin-top: 6
-    height: 40
-    background-color: #1D1D1D
-
-    BotSwitch
-      id: ex1on
-      anchors.left: parent.left
-      anchors.verticalCenter: parent.verticalCenter
-      margin-left: 3
-      width: 32
-      height: 20
-      !text: tr('1')
-
-    TextEdit
-      id: ex1spell
-      anchors.top: parent.top
-      anchors.left: prev.right
-      margin-left: 6
-      margin-top: 4
-      width: 120
-
-    Label
-      id: ex1txt
-      anchors.top: parent.top
-      anchors.left: prev.right
-      anchors.right: parent.right
-      text-align: center
-      text: cada 5 seg
-      color: #E8E8E8
-      font: verdana-11px-rounded
-      height: 14
-      margin-top: 6
-      margin-left: 8
-      margin-right: 6
-
-    HorizontalScrollBar
-      id: ex1cd
-      anchors.bottom: parent.bottom
-      anchors.left: ex1spell.left
-      anchors.right: parent.right
-      minimum: 1
-      maximum: 120
-      step: 1
-      height: 14
-      margin-bottom: 4
-      margin-right: 6
-  Panel
-    id: ex2row
-    anchors.top: prev.bottom
-    anchors.left: parent.left
-    anchors.right: parent.right
-    margin-top: 6
-    height: 40
-    background-color: #1D1D1D
-
-    BotSwitch
-      id: ex2on
-      anchors.left: parent.left
-      anchors.verticalCenter: parent.verticalCenter
-      margin-left: 3
-      width: 32
-      height: 20
-      !text: tr('2')
-
-    TextEdit
-      id: ex2spell
-      anchors.top: parent.top
-      anchors.left: prev.right
-      margin-left: 6
-      margin-top: 4
-      width: 120
-
-    Label
-      id: ex2txt
-      anchors.top: parent.top
-      anchors.left: prev.right
-      anchors.right: parent.right
-      text-align: center
-      text: cada 5 seg
-      color: #E8E8E8
-      font: verdana-11px-rounded
-      height: 14
-      margin-top: 6
-      margin-left: 8
-      margin-right: 6
-
-    HorizontalScrollBar
-      id: ex2cd
-      anchors.bottom: parent.bottom
-      anchors.left: ex2spell.left
-      anchors.right: parent.right
-      minimum: 1
-      maximum: 120
-      step: 1
-      height: 14
-      margin-bottom: 4
-      margin-right: 6
-  Panel
-    id: ex3row
-    anchors.top: prev.bottom
-    anchors.left: parent.left
-    anchors.right: parent.right
-    margin-top: 6
-    height: 40
-    background-color: #1D1D1D
-
-    BotSwitch
-      id: ex3on
-      anchors.left: parent.left
-      anchors.verticalCenter: parent.verticalCenter
-      margin-left: 3
-      width: 32
-      height: 20
-      !text: tr('3')
-
-    TextEdit
-      id: ex3spell
-      anchors.top: parent.top
-      anchors.left: prev.right
-      margin-left: 6
-      margin-top: 4
-      width: 120
-
-    Label
-      id: ex3txt
-      anchors.top: parent.top
-      anchors.left: prev.right
-      anchors.right: parent.right
-      text-align: center
-      text: cada 5 seg
-      color: #E8E8E8
-      font: verdana-11px-rounded
-      height: 14
-      margin-top: 6
-      margin-left: 8
-      margin-right: 6
-
-    HorizontalScrollBar
-      id: ex3cd
-      anchors.bottom: parent.bottom
-      anchors.left: ex3spell.left
-      anchors.right: parent.right
-      minimum: 1
-      maximum: 120
-      step: 1
-      height: 14
-      margin-bottom: 4
-      margin-right: 6
+    height: 20
+    margin-top: 4
 
   Label
-    id: secTgt
+    id: atk1sep
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text-align: left
+    text:   Slot 1
+    color: #C8C8C8
+    background-color: #1A1A1A
+    font: verdana-11px-rounded
+    height: 14
+    margin-top: 6
+
+  BotSwitch
+    id: atk1on
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    margin-top: 3
+    height: 20
+    width: 60
+    !text: tr('ON')
+
+  ComboBox
+    id: atk1spell
+    anchors.top: prev.top
+    anchors.bottom: prev.bottom
+    anchors.left: prev.right
+    anchors.right: parent.right
+    margin-left: 6
+    margin-right: 4
+
+  Label
+    id: atk1txt
+    anchors.top: atk1on.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text-align: center
+    text: cada 2000 ms
+    color: #E8E8E8
+    font: verdana-11px-rounded
+    height: 14
+    margin-top: 4
+
+  HorizontalScrollBar
+    id: atk1cd
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    minimum: 500
+    maximum: 8000
+    step: 100
+    height: 14
+    margin-top: 2
+    margin-left: 4
+    margin-right: 4
+  Label
+    id: atk2sep
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text-align: left
+    text:   Slot 2
+    color: #C8C8C8
+    background-color: #1A1A1A
+    font: verdana-11px-rounded
+    height: 14
+    margin-top: 6
+
+  BotSwitch
+    id: atk2on
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    margin-top: 3
+    height: 20
+    width: 60
+    !text: tr('ON')
+
+  ComboBox
+    id: atk2spell
+    anchors.top: prev.top
+    anchors.bottom: prev.bottom
+    anchors.left: prev.right
+    anchors.right: parent.right
+    margin-left: 6
+    margin-right: 4
+
+  Label
+    id: atk2txt
+    anchors.top: atk2on.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text-align: center
+    text: cada 2000 ms
+    color: #E8E8E8
+    font: verdana-11px-rounded
+    height: 14
+    margin-top: 4
+
+  HorizontalScrollBar
+    id: atk2cd
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    minimum: 500
+    maximum: 8000
+    step: 100
+    height: 14
+    margin-top: 2
+    margin-left: 4
+    margin-right: 4
+  Label
+    id: atk3sep
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text-align: left
+    text:   Slot 3
+    color: #C8C8C8
+    background-color: #1A1A1A
+    font: verdana-11px-rounded
+    height: 14
+    margin-top: 6
+
+  BotSwitch
+    id: atk3on
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    margin-top: 3
+    height: 20
+    width: 60
+    !text: tr('ON')
+
+  ComboBox
+    id: atk3spell
+    anchors.top: prev.top
+    anchors.bottom: prev.bottom
+    anchors.left: prev.right
+    anchors.right: parent.right
+    margin-left: 6
+    margin-right: 4
+
+  Label
+    id: atk3txt
+    anchors.top: atk3on.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text-align: center
+    text: cada 2000 ms
+    color: #E8E8E8
+    font: verdana-11px-rounded
+    height: 14
+    margin-top: 4
+
+  HorizontalScrollBar
+    id: atk3cd
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    minimum: 500
+    maximum: 8000
+    step: 100
+    height: 14
+    margin-top: 2
+    margin-left: 4
+    margin-right: 4
+]==]);  pcall(function() pAtk:hide() end)
+    local pEx   = setupUI([==[
+Panel
+  id: pageEx
+  height: 400
+
+  Button
+    id: btnBack
+    anchors.top: parent.top
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text: << Volver al menu
+    font: cipsoftFont
+    color: #FFFFFF
+    background-color: #555555
+    height: 22
+
+  Label
+    id: title
     anchors.top: prev.bottom
     anchors.left: parent.left
     anchors.right: parent.right
     text-align: center
-    text: === AUTO-TARGET ===
+    text: EXTRAS (spells custom)
     color: #D4AF37
+    background-color: #232323
+    font: verdana-11px-rounded
+    height: 20
+    margin-top: 4
+
+  Label
+    id: ex1sep
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text-align: left
+    text:   Slot 1
+    color: #C8C8C8
     background-color: #1A1A1A
     font: verdana-11px-rounded
-    height: 18
-    margin-top: 14
+    height: 14
+    margin-top: 6
+
+  BotSwitch
+    id: ex1on
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    margin-top: 3
+    height: 20
+    width: 60
+    !text: tr('ON')
+
+  TextEdit
+    id: ex1spell
+    anchors.top: prev.top
+    anchors.bottom: prev.bottom
+    anchors.left: prev.right
+    anchors.right: parent.right
+    margin-left: 6
+    margin-right: 4
+
+  Label
+    id: ex1txt
+    anchors.top: ex1on.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text-align: center
+    text: cada 5 seg
+    color: #E8E8E8
+    font: verdana-11px-rounded
+    height: 14
+    margin-top: 4
+
+  HorizontalScrollBar
+    id: ex1cd
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    minimum: 1
+    maximum: 120
+    step: 1
+    height: 14
+    margin-top: 2
+    margin-left: 4
+    margin-right: 4
+  Label
+    id: ex2sep
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text-align: left
+    text:   Slot 2
+    color: #C8C8C8
+    background-color: #1A1A1A
+    font: verdana-11px-rounded
+    height: 14
+    margin-top: 6
+
+  BotSwitch
+    id: ex2on
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    margin-top: 3
+    height: 20
+    width: 60
+    !text: tr('ON')
+
+  TextEdit
+    id: ex2spell
+    anchors.top: prev.top
+    anchors.bottom: prev.bottom
+    anchors.left: prev.right
+    anchors.right: parent.right
+    margin-left: 6
+    margin-right: 4
+
+  Label
+    id: ex2txt
+    anchors.top: ex2on.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text-align: center
+    text: cada 5 seg
+    color: #E8E8E8
+    font: verdana-11px-rounded
+    height: 14
+    margin-top: 4
+
+  HorizontalScrollBar
+    id: ex2cd
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    minimum: 1
+    maximum: 120
+    step: 1
+    height: 14
+    margin-top: 2
+    margin-left: 4
+    margin-right: 4
+  Label
+    id: ex3sep
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text-align: left
+    text:   Slot 3
+    color: #C8C8C8
+    background-color: #1A1A1A
+    font: verdana-11px-rounded
+    height: 14
+    margin-top: 6
+
+  BotSwitch
+    id: ex3on
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    margin-top: 3
+    height: 20
+    width: 60
+    !text: tr('ON')
+
+  TextEdit
+    id: ex3spell
+    anchors.top: prev.top
+    anchors.bottom: prev.bottom
+    anchors.left: prev.right
+    anchors.right: parent.right
+    margin-left: 6
+    margin-right: 4
+
+  Label
+    id: ex3txt
+    anchors.top: ex3on.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text-align: center
+    text: cada 5 seg
+    color: #E8E8E8
+    font: verdana-11px-rounded
+    height: 14
+    margin-top: 4
+
+  HorizontalScrollBar
+    id: ex3cd
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    minimum: 1
+    maximum: 120
+    step: 1
+    height: 14
+    margin-top: 2
+    margin-left: 4
+    margin-right: 4
+]==]);   pcall(function() pEx:hide() end)
+    local pTgt  = setupUI([==[
+Panel
+  id: pageTgt
+  height: 200
+
+  Button
+    id: btnBack
+    anchors.top: parent.top
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text: << Volver al menu
+    font: cipsoftFont
+    color: #FFFFFF
+    background-color: #555555
+    height: 22
+
+  Label
+    id: title
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text-align: center
+    text: AUTO-TARGET
+    color: #D4AF37
+    background-color: #232323
+    font: verdana-11px-rounded
+    height: 20
+    margin-top: 4
 
   BotSwitch
     id: tgtOn
     anchors.top: prev.bottom
     anchors.left: parent.left
     anchors.right: parent.right
-    margin-top: 6
-    height: 20
+    margin-top: 8
+    height: 22
     !text: tr('Atacar monstruo mas cercano')
 
   Label
@@ -2714,7 +3062,7 @@ Panel
     color: #E8E8E8
     font: verdana-11px-rounded
     height: 14
-    margin-top: 6
+    margin-top: 8
 
   HorizontalScrollBar
     id: tgtRange
@@ -2726,55 +3074,63 @@ Panel
     step: 1
     height: 14
     margin-top: 2
+]==]);  pcall(function() pTgt:hide() end)
+    local pFol  = setupUI([==[
+Panel
+  id: pageFol
+  height: 220
+
+  Button
+    id: btnBack
+    anchors.top: parent.top
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text: << Volver al menu
+    font: cipsoftFont
+    color: #FFFFFF
+    background-color: #555555
+    height: 22
 
   Label
-    id: secFol
+    id: title
     anchors.top: prev.bottom
     anchors.left: parent.left
     anchors.right: parent.right
     text-align: center
-    text: === FOLLOW (leader) ===
+    text: FOLLOW (leader)
     color: #D4AF37
-    background-color: #1A1A1A
+    background-color: #232323
     font: verdana-11px-rounded
-    height: 18
-    margin-top: 14
+    height: 20
+    margin-top: 4
 
   BotSwitch
     id: folOn
     anchors.top: prev.bottom
     anchors.left: parent.left
     anchors.right: parent.right
-    margin-top: 6
-    height: 20
+    margin-top: 8
+    height: 22
     !text: tr('Seguir a jugador (findPath)')
 
-  Panel
-    id: folLdrRow
+  Label
+    id: folLdrLbl
     anchors.top: prev.bottom
     anchors.left: parent.left
+    text: Leader:
+    color: #C8C8C8
+    font: verdana-11px-rounded
+    height: 14
+    margin-top: 8
+    width: 60
+
+  TextEdit
+    id: folLeader
+    anchors.top: prev.top
+    anchors.left: prev.right
     anchors.right: parent.right
-    margin-top: 6
-    height: 20
-
-    Label
-      id: folLdrLbl
-      anchors.left: parent.left
-      anchors.verticalCenter: parent.verticalCenter
-      text: Leader:
-      color: #C8C8C8
-      font: verdana-11px-rounded
-      height: 14
-      width: 50
-      margin-left: 4
-
-    TextEdit
-      id: folLeader
-      anchors.left: prev.right
-      anchors.right: parent.right
-      anchors.verticalCenter: parent.verticalCenter
-      margin-left: 6
-      margin-right: 4
+    margin-left: 4
+    margin-right: 4
 
   Label
     id: folDistText
@@ -2786,7 +3142,7 @@ Panel
     color: #E8E8E8
     font: verdana-11px-rounded
     height: 14
-    margin-top: 6
+    margin-top: 8
 
   HorizontalScrollBar
     id: folDist
@@ -2798,63 +3154,71 @@ Panel
     step: 1
     height: 14
     margin-top: 2
+]==]);  pcall(function() pFol:hide() end)
+    local pMch  = setupUI([==[
+Panel
+  id: pageMch
+  height: 280
+
+  Button
+    id: btnBack
+    anchors.top: parent.top
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text: << Volver al menu
+    font: cipsoftFont
+    color: #FFFFFF
+    background-color: #555555
+    height: 22
 
   Label
-    id: secMch
+    id: title
     anchors.top: prev.bottom
     anchors.left: parent.left
     anchors.right: parent.right
     text-align: center
-    text: === MC HUNT (multi-cuenta) ===
+    text: MC HUNT (multi-cuenta)
     color: #D4AF37
-    background-color: #1A1A1A
+    background-color: #232323
     font: verdana-11px-rounded
-    height: 18
-    margin-top: 14
+    height: 20
+    margin-top: 4
 
   BotSwitch
     id: mchIsLeader
     anchors.top: prev.bottom
     anchors.left: parent.left
     anchors.right: parent.right
-    margin-top: 6
-    height: 20
+    margin-top: 8
+    height: 22
     !text: tr('Yo soy el LEADER')
 
-  Panel
-    id: mchLdrRow
+  Label
+    id: mchLdrLbl
     anchors.top: prev.bottom
     anchors.left: parent.left
+    text: Leader:
+    color: #C8C8C8
+    font: verdana-11px-rounded
+    height: 14
+    margin-top: 8
+    width: 60
+
+  TextEdit
+    id: mchLeader
+    anchors.top: prev.top
+    anchors.left: prev.right
     anchors.right: parent.right
-    margin-top: 6
-    height: 20
-
-    Label
-      id: mchLdrLbl
-      anchors.left: parent.left
-      anchors.verticalCenter: parent.verticalCenter
-      text: Leader:
-      color: #C8C8C8
-      font: verdana-11px-rounded
-      height: 14
-      width: 50
-      margin-left: 4
-
-    TextEdit
-      id: mchLeader
-      anchors.left: prev.right
-      anchors.right: parent.right
-      anchors.verticalCenter: parent.verticalCenter
-      margin-left: 6
-      margin-right: 4
+    margin-left: 4
+    margin-right: 4
 
   BotSwitch
     id: mchFollow
     anchors.top: prev.bottom
     anchors.left: parent.left
     anchors.right: parent.right
-    margin-top: 6
-    height: 20
+    margin-top: 8
+    height: 22
     !text: tr('MCs siguen mismo piso')
 
   BotSwitch
@@ -2863,29 +3227,45 @@ Panel
     anchors.left: parent.left
     anchors.right: parent.right
     margin-top: 4
-    height: 20
+    height: 22
     !text: tr('MCs cruzan piso (escaleras)')
+]==]);  pcall(function() pMch:hide() end)
+    local pPk   = setupUI([==[
+Panel
+  id: pagePk
+  height: 180
+
+  Button
+    id: btnBack
+    anchors.top: parent.top
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text: << Volver al menu
+    font: cipsoftFont
+    color: #FFFFFF
+    background-color: #555555
+    height: 22
 
   Label
-    id: secPk
+    id: title
     anchors.top: prev.bottom
     anchors.left: parent.left
     anchors.right: parent.right
     text-align: center
-    text: === ANTI-PK ===
+    text: ANTI-PK
     color: #D4AF37
-    background-color: #1A1A1A
+    background-color: #232323
     font: verdana-11px-rounded
-    height: 18
-    margin-top: 14
+    height: 20
+    margin-top: 4
 
   BotSwitch
     id: pkOn
     anchors.top: prev.bottom
     anchors.left: parent.left
     anchors.right: parent.right
-    margin-top: 6
-    height: 20
+    margin-top: 8
+    height: 22
     !text: tr('Alertar players desconocidos')
 
   BotSwitch
@@ -2894,51 +3274,59 @@ Panel
     anchors.left: parent.left
     anchors.right: parent.right
     margin-top: 4
-    height: 20
+    height: 22
     !text: tr('Avisar a MCs por el hub')
+]==]);   pcall(function() pPk:hide() end)
+    local pHub  = setupUI([==[
+Panel
+  id: pageHub
+  height: 220
+
+  Button
+    id: btnBack
+    anchors.top: parent.top
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text: << Volver al menu
+    font: cipsoftFont
+    color: #FFFFFF
+    background-color: #555555
+    height: 22
 
   Label
-    id: secHub
+    id: title
     anchors.top: prev.bottom
     anchors.left: parent.left
     anchors.right: parent.right
     text-align: center
-    text: === HUB (conexion MCs) ===
+    text: HUB (conexion MCs)
     color: #D4AF37
-    background-color: #1A1A1A
+    background-color: #232323
     font: verdana-11px-rounded
-    height: 18
-    margin-top: 14
+    height: 20
+    margin-top: 4
 
-  Panel
-    id: hubCanalRow
+  Label
+    id: canalLbl
     anchors.top: prev.bottom
     anchors.left: parent.left
+    text: Canal:
+    color: #C8C8C8
+    font: verdana-11px-rounded
+    height: 14
+    margin-top: 8
+    width: 60
+
+  TextEdit
+    id: canal
+    anchors.top: prev.top
+    anchors.left: prev.right
     anchors.right: parent.right
-    margin-top: 6
-    height: 20
-
-    Label
-      id: hubCanalLbl
-      anchors.left: parent.left
-      anchors.verticalCenter: parent.verticalCenter
-      text: Canal:
-      color: #C8C8C8
-      font: verdana-11px-rounded
-      height: 14
-      width: 50
-      margin-left: 4
-
-    TextEdit
-      id: hubCanal
-      anchors.left: prev.right
-      anchors.right: parent.right
-      anchors.verticalCenter: parent.verticalCenter
-      margin-left: 6
-      margin-right: 4
+    margin-left: 4
+    margin-right: 4
 
   Button
-    id: hubReconnect
+    id: reconnect
     anchors.top: prev.bottom
     anchors.left: parent.left
     anchors.right: parent.right
@@ -2948,247 +3336,214 @@ Panel
     background-color: #326432
     height: 22
     margin-top: 8
-]==])
 
-    RQ._vipPanel = ui
+  Label
+    id: status
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text-align: center
+    text: (estado)
+    color: #C83C3C
+    font: verdana-11px-rounded
+    height: 14
+    margin-top: 6
+]==]);  pcall(function() pHub:hide() end)
+    RQ._vipPages = {menu=pMenu, cura=pCura, atk=pAtk, ex=pEx, tgt=pTgt, fol=pFol, mch=pMch, pk=pPk, hub=pHub}
 
-    -- helpers ---------------------------------------------------------
-    -- fillCombo defensivo: prueba varias APIs porque Mayas MEHAH puede ser distinto
-    local function fillCombo(combo, opts, current)
-        if not combo or not opts or #opts == 0 then return end
-        pcall(function() combo:clearOptions() end)
-        local added = 0
-        for _, o in ipairs(opts) do
-            local s = tostring(o)
-            local ok = pcall(function() combo:addOption(s) end)
-            if not ok then pcall(function() combo:addOption(s, s) end); ok = true end
-            if ok then added = added + 1 end
+    local function showPage(name)
+        for k, p in pairs(RQ._vipPages) do
+            pcall(function() if k == name then p:show() else p:hide() end end)
         end
-        if current then
-            local s = tostring(current)
-            pcall(function() combo:setCurrentOption(s) end)
-            pcall(function() combo:setOption(s) end)
-        end
-        if added == 0 then
-            _rqSay("fillCombo FALLO -- ninguna opcion aceptada")
-        end
-    end
-    -- versiones hyper-defensivas: cada operacion en pcall, si un widget
-    -- falla al bindear no rompe el resto del setup.
-    local function bindSwitch(w, key, def)
-        if not w then return end
-        pcall(function() w:setOn(C.get(key, def) and true or false) end)
-        pcall(function()
-            w.onClick = function()
-                local n = not C.get(key, def)
-                C.set(key, n)
-                pcall(function() w:setOn(n) end)
-            end
-        end)
-    end
-    local function bindItem(w, key, def)
-        if not w then return end
-        pcall(function() w:setItemId(tonumber(C.get(key, def)) or tonumber(def) or 0) end)
-        pcall(function()
-            w.onItemChange = function(x)
-                local id = 0
-                pcall(function() id = x:getItemId() end)
-                C.set(key, id)
-            end
-        end)
-    end
-    local function bindSlider(slider, label, key, def, fmt)
-        if not slider then return end
-        local function refresh()
-            pcall(function()
-                if label then
-                    local v = C.get(key, def) or def or 0
-                    label:setText(string.format(tostring(fmt or "%s"), v))
-                end
-            end)
-        end
-        pcall(function() slider:setValue(tonumber(C.get(key, def)) or tonumber(def) or 0) end)
-        refresh()
-        pcall(function()
-            slider.onValueChange = function(_, v) C.set(key, v); refresh() end
-        end)
-    end
-    local function bindText(w, key, def)
-        if not w then return end
-        pcall(function() w:setText(tostring(C.get(key, def) or "")) end)
-        pcall(function()
-            w.onTextChange = function(_, t) C.set(key, t or "") end
-        end)
-    end
-    local function bindCombo(w, key)
-        if not w then return end
-        pcall(function()
-            w.onOptionChange = function(x)
-                local o
-                pcall(function() o = x:getCurrentOption() end)
-                if o and o.text then C.set(key, o.text) end
-            end
-        end)
     end
 
-    -- master + vocacion + net label ------------------------------------
-    _rqSay("VIP paso 1: bind master switch")
-    bindSwitch(ui.master, "vip.master", true)
-    _rqSay("VIP paso 2: fillCombo vocacion (voc="..tostring(C.get("vip.voc"))..")")
-    -- El combo Vocacion vive dentro de Panel wrapper "vocRow" -> ui.vocRow.voc
-    local vocCombo = ui.vocRow and ui.vocRow.voc or ui.voc
-    pcall(function() fillCombo(vocCombo, RQ.Catalog.vocations, C.get("vip.voc")) end)
-    pcall(function()
-        vocCombo.onOptionChange = function(w)
-            local o = w:getCurrentOption(); local t = o and o.text or nil
-            if not t then return end
-            C.set("vip.voc", t)
-            for i=1,3 do
-                pcall(function() fillCombo(ui["atk"..i.."spell"], RQ.Catalog.attackSpells[t] or {}, C.get("vip.atk"..i..".spell")) end)
+    -- ==================================================
+    -- MENU: switches + botones que abren pagina
+    -- ==================================================
+    bindSwitch(pMenu.master, "vip.master", true)
+
+    RQ.Scheduler.every("rq_vip_netlbl", 1000, function()
+        if not pMenu.netLbl then return end
+        pcall(function()
+            if RQ.Net.conectado then
+                pMenu.netLbl:setText("Net OK | "..RQ.Net.canal.." | tx="..RQ.Net.tx.." rx="..RQ.Net.rx)
+                pMenu.netLbl:setColor("#32DC64")
+            else
+                pMenu.netLbl:setText("Net OFF (¿RQ_Hub.py corriendo?)")
+                pMenu.netLbl:setColor("#C83C3C")
             end
-        end
+        end)
     end)
 
-    -- HP pots ----------------------------------------------------------
-    _rqSay("VIP paso 3: HP pots")
-    for i=1,3 do
-        pcall(function() bindSwitch(ui["hp"..i.."on"], "vip.hp"..i..".on", i==1) end)
-        pcall(function() bindItem(ui["hp"..i.."item"], "vip.hp"..i..".item", defHp[i]) end)
-        pcall(function() bindSlider(ui["hp"..i.."pct"], ui["hp"..i.."txt"], "vip.hp"..i..".pct", defHpPct[i], "HP<= %d%%") end)
+    pMenu.btnHub.onClick  = function() showPage("hub") end
+    pMenu.btnCura.onClick = function() showPage("cura") end
+    pMenu.btnAtk.onClick  = function() showPage("atk") end
+    pMenu.btnEx.onClick   = function() showPage("ex") end
+    pMenu.btnTgt.onClick  = function() showPage("tgt") end
+    pMenu.btnFol.onClick  = function() showPage("fol") end
+    pMenu.btnMch.onClick  = function() showPage("mch") end
+    pMenu.btnPk.onClick   = function() showPage("pk") end
+
+    -- Todos los "Volver" vuelven al menu
+    for _, p in ipairs({pCura, pAtk, pEx, pTgt, pFol, pMch, pPk, pHub}) do
+        pcall(function() p.btnBack.onClick = function() showPage("menu") end end)
     end
 
-    -- MP pots ----------------------------------------------------------
-    _rqSay("VIP paso 4: MP pots")
+    -- ==================================================
+    -- PAGINA CURACIONES (3 HP + 3 MP con toggle POT/SPELL)
+    -- ==================================================
+    local function bindCuraSlot(page, pfx, i, defItem, defPct, letra)
+        local w = {
+            on    = page[pfx..i.."on"],
+            mode  = page[pfx..i.."mode"],
+            item  = page[pfx..i.."item"],
+            spell = page[pfx..i.."spell"],
+            txt   = page[pfx..i.."txt"],
+            pct   = page[pfx..i.."pct"],
+        }
+        bindSwitch(w.on, "vip."..pfx..i..".on", i==1)
+        bindItem(w.item,  "vip."..pfx..i..".item", defItem)
+        bindText(w.spell, "vip."..pfx..i..".spell", "")
+        bindSlider(w.pct, w.txt, "vip."..pfx..i..".pct", defPct, letra.."<= %d%%")
+        -- modo POT/SPELL: switch on = POT, off = SPELL
+        local function refreshMode()
+            local isPot = C.get("vip."..pfx..i..".mode", true) and true or false
+            pcall(function() w.mode:setText(isPot and "POT" or "SPELL") end)
+            pcall(function() w.mode:setOn(isPot) end)
+            pcall(function() w.item:setVisible(isPot) end)
+            pcall(function() w.spell:setVisible(not isPot) end)
+        end
+        refreshMode()
+        pcall(function() w.mode.onClick = function()
+            local isPot = not C.get("vip."..pfx..i..".mode", true)
+            C.set("vip."..pfx..i..".mode", isPot)
+            refreshMode()
+        end end)
+    end
     for i=1,3 do
-        pcall(function() bindSwitch(ui["mp"..i.."on"], "vip.mp"..i..".on", i==1) end)
-        pcall(function() bindItem(ui["mp"..i.."item"], "vip.mp"..i..".item", defMp[i]) end)
-        pcall(function() bindSlider(ui["mp"..i.."pct"], ui["mp"..i.."txt"], "vip.mp"..i..".pct", defMpPct[i], "MP<= %d%%") end)
+        bindCuraSlot(pCura, "hp", i, defHp[i], defHpPct[i], "HP")
+        bindCuraSlot(pCura, "mp", i, defMp[i], defMpPct[i], "MP")
     end
 
-    -- Attack spells ----------------------------------------------------
-    _rqSay("VIP paso 5: Attack spells")
+    -- ==================================================
+    -- PAGINA SPELLS ATAQUE
+    -- ==================================================
     local currentVoc = tostring(C.get("vip.voc") or "EK")
     local attackList = RQ.Catalog.attackSpells[currentVoc] or {}
     for i=1,3 do
-        pcall(function() bindSwitch(ui["atk"..i.."on"], "vip.atk"..i..".on", false) end)
-        pcall(function() fillCombo(ui["atk"..i.."spell"], attackList, C.get("vip.atk"..i..".spell")) end)
-        pcall(function() bindCombo(ui["atk"..i.."spell"], "vip.atk"..i..".spell") end)
-        pcall(function() bindSlider(ui["atk"..i.."cd"], ui["atk"..i.."txt"], "vip.atk"..i..".cd", 2000, "cada %d ms") end)
+        bindSwitch(pAtk["atk"..i.."on"], "vip.atk"..i..".on", false)
+        fillCombo(pAtk["atk"..i.."spell"], attackList, C.get("vip.atk"..i..".spell"))
+        bindCombo(pAtk["atk"..i.."spell"], "vip.atk"..i..".spell")
+        bindSlider(pAtk["atk"..i.."cd"], pAtk["atk"..i.."txt"], "vip.atk"..i..".cd", 2000, "cada %d ms")
     end
 
-    -- Extras -----------------------------------------------------------
-    _rqSay("VIP paso 6: Extras")
+    -- ==================================================
+    -- PAGINA EXTRAS
+    -- ==================================================
     for i=1,3 do
-        pcall(function() bindSwitch(ui["ex"..i.."on"], "vip.ex"..i..".on", false) end)
-        pcall(function() bindText(ui["ex"..i.."spell"], "vip.ex"..i..".spell", "") end)
-        pcall(function() bindSlider(ui["ex"..i.."cd"], ui["ex"..i.."txt"], "vip.ex"..i..".cd", 5, "cada %d seg") end)
-    end
-    _rqSay("VIP paso 7: Target/Follow/MCH/PK/Hub")
-
-    -- Target -----------------------------------------------------------
-    bindSwitch(ui.tgtOn, "vip.tgt.on", false)
-    bindSlider(ui.tgtRange, ui.tgtRngText, "vip.tgt.range", 5, "Rango: %d tiles")
-
-    -- Follow -----------------------------------------------------------
-    bindSwitch(ui.folOn, "vip.fol.on", false)
-    bindText(ui.folLdrRow and ui.folLdrRow.folLeader or ui.folLeader, "vip.fol.leader", "")
-    bindSlider(ui.folDist, ui.folDistText, "vip.fol.dist", 2, "Distancia max: %d")
-
-    -- MC Hunt ----------------------------------------------------------
-    bindSwitch(ui.mchIsLeader, "vip.mch.isLeader", false)
-    bindText(ui.mchLdrRow and ui.mchLdrRow.mchLeader or ui.mchLeader, "vip.mch.leader", "")
-    bindSwitch(ui.mchFollow, "vip.mch.followSame", true)
-    bindSwitch(ui.mchCross, "vip.mch.crossFl", true)
-
-    -- Anti-PK ----------------------------------------------------------
-    bindSwitch(ui.pkOn, "vip.pk.on", true)
-    bindSwitch(ui.pkBroadcast, "vip.pk.broadcast", true)
-
-    -- Hub --------------------------------------------------------------
-    bindText(ui.hubCanalRow and ui.hubCanalRow.hubCanal or ui.hubCanal, "net.canal", "rq")
-    ui.hubReconnect.onClick = function()
-        RQ.Net.connect(C.get("net.canal", "rq"))
+        bindSwitch(pEx["ex"..i.."on"], "vip.ex"..i..".on", false)
+        bindText(pEx["ex"..i.."spell"], "vip.ex"..i..".spell", "")
+        bindSlider(pEx["ex"..i.."cd"], pEx["ex"..i.."txt"], "vip.ex"..i..".cd", 5, "cada %d seg")
     end
 
-    -- Net label refresh ------------------------------------------------
-    RQ.Scheduler.every("rq_vip_netlbl", 1000, function()
-        if not ui.netLbl then return end
+    -- ==================================================
+    -- PAGINA TARGET / FOLLOW / MC HUNT / ANTI-PK / HUB
+    -- ==================================================
+    bindSwitch(pTgt.tgtOn, "vip.tgt.on", false)
+    bindSlider(pTgt.tgtRange, pTgt.tgtRngText, "vip.tgt.range", 5, "Rango: %d tiles")
+
+    bindSwitch(pFol.folOn, "vip.fol.on", false)
+    bindText(pFol.folLeader, "vip.fol.leader", "")
+    bindSlider(pFol.folDist, pFol.folDistText, "vip.fol.dist", 2, "Distancia max: %d")
+
+    bindSwitch(pMch.mchIsLeader, "vip.mch.isLeader", false)
+    bindText(pMch.mchLeader, "vip.mch.leader", "")
+    bindSwitch(pMch.mchFollow, "vip.mch.followSame", true)
+    bindSwitch(pMch.mchCross, "vip.mch.crossFl", true)
+
+    bindSwitch(pPk.pkOn, "vip.pk.on", true)
+    bindSwitch(pPk.pkBroadcast, "vip.pk.broadcast", true)
+
+    bindText(pHub.canal, "net.canal", "rq")
+    pcall(function() pHub.reconnect.onClick = function() RQ.Net.connect(C.get("net.canal", "rq")) end end)
+    RQ.Scheduler.every("rq_hub_status", 1000, function()
+        if not pHub or not pHub:isVisible() then return end
         pcall(function()
             if RQ.Net.conectado then
-                ui.netLbl:setText("Net OK | "..RQ.Net.canal.." | tx="..RQ.Net.tx.." rx="..RQ.Net.rx)
-                ui.netLbl:setColor("#32DC64")
+                pHub.status:setText("Net OK | "..RQ.Net.canal.." | tx="..RQ.Net.tx.." rx="..RQ.Net.rx)
+                pHub.status:setColor("#32DC64")
             else
-                ui.netLbl:setText("Net OFF (¿RQ_Hub.py corriendo?)")
-                ui.netLbl:setColor("#C83C3C")
+                pHub.status:setText("Net OFF -- ¿RQ_Hub.py corriendo?")
+                pHub.status:setColor("#C83C3C")
             end
         end)
     end)
 
-    -- MACROS -----------------------------------------------------------
-    -- pociones HP: recorre 3 en orden, usa la primera que aplica
-    macro(200, "RScriptz VIP: HP pots", function()
+    -- ==================================================
+    -- MACROS
+    -- ==================================================
+    -- HP pots/spells segun modo
+    macro(200, "RScriptz VIP: HP heal", function()
         if RQ.tier ~= "VIP" or not C.get("vip.master", true) then return end
         local hp = RQ.Game.hp()
         for i=1,3 do
             if C.get("vip.hp"..i..".on") and hp <= (tonumber(C.get("vip.hp"..i..".pct")) or 0) then
-                safeUseSelf(C.get("vip.hp"..i..".item"))
+                if C.get("vip.hp"..i..".mode", true) then
+                    safeUseSelf(C.get("vip.hp"..i..".item"))
+                else
+                    local sp = C.get("vip.hp"..i..".spell") or ""
+                    if sp ~= "" then safeCast(sp) end
+                end
                 return
             end
         end
     end)
-
-    -- pociones MP: igual
-    macro(200, "RScriptz VIP: MP pots", function()
+    macro(200, "RScriptz VIP: MP heal", function()
         if RQ.tier ~= "VIP" or not C.get("vip.master", true) then return end
         local mp = RQ.Game.mana()
         for i=1,3 do
             if C.get("vip.mp"..i..".on") and mp <= (tonumber(C.get("vip.mp"..i..".pct")) or 0) then
-                safeUseSelf(C.get("vip.mp"..i..".item"))
+                if C.get("vip.mp"..i..".mode", true) then
+                    safeUseSelf(C.get("vip.mp"..i..".item"))
+                else
+                    local sp = C.get("vip.mp"..i..".spell") or ""
+                    if sp ~= "" then safeCast(sp) end
+                end
                 return
             end
         end
     end)
-
-    -- attack spells: recorren y castean el primero que aplique con su cd
     local lastAtk = {0,0,0}
     macro(200, "RScriptz VIP: Attack spells", function()
         if RQ.tier ~= "VIP" or not C.get("vip.master", true) then return end
-        if not getAttackingCreature() then return end
+        if not _rqGetTarget() then return end
         local now = os.time() * 1000
         for i=1,3 do
             if C.get("vip.atk"..i..".on") then
                 local cd = tonumber(C.get("vip.atk"..i..".cd")) or 2000
                 if now - lastAtk[i] >= cd then
                     safeCast(C.get("vip.atk"..i..".spell") or "")
-                    lastAtk[i] = now
-                    return
+                    lastAtk[i] = now; return
                 end
             end
         end
     end)
-
-    -- extras: spells custom con delay en segundos
     local lastEx = {0,0,0}
     macro(1000, "RScriptz VIP: Extras", function()
         if RQ.tier ~= "VIP" or not C.get("vip.master", true) then return end
         local now = os.time()
         for i=1,3 do
-            local spell = C.get("vip.ex"..i..".spell") or ""
-            if C.get("vip.ex"..i..".on") and spell ~= "" then
+            local sp = C.get("vip.ex"..i..".spell") or ""
+            if C.get("vip.ex"..i..".on") and sp ~= "" then
                 local cd = tonumber(C.get("vip.ex"..i..".cd")) or 5
-                if now - lastEx[i] >= cd then
-                    safeCast(spell)
-                    lastEx[i] = now
-                end
+                if now - lastEx[i] >= cd then safeCast(sp); lastEx[i] = now end
             end
         end
     end)
-
-    -- auto target
     macro(500, "RScriptz VIP: Auto Target", function()
         if RQ.tier ~= "VIP" or not C.get("vip.master", true) then return end
         if not C.get("vip.tgt.on", false) then return end
-        if getAttackingCreature() then return end
+        if _rqGetTarget() then return end
         local miPos = RQ.Game.pos(); if not miPos then return end
         local maxR = tonumber(C.get("vip.tgt.range", 5)) or 5
         local mejor, mejorD = nil, 999
@@ -3200,22 +3555,17 @@ Panel
         end
         if mejor and mejor.ref then pcall(function() attack(mejor.ref) end) end
     end)
-
-    -- follow
     macro(300, "RScriptz VIP: Follow", function()
         if RQ.tier ~= "VIP" or not C.get("vip.master", true) then return end
         if not C.get("vip.fol.on", false) then return end
-        local nom = C.get("vip.fol.leader", "")
-        if nom == "" then return end
+        local nom = C.get("vip.fol.leader", ""); if nom == "" then return end
         local ldr = RQ.Game.jugadorPorNombre(nom); if not ldr or not ldr.pos then return end
         local miPos = RQ.Game.pos(); if not miPos or ldr.pos.z ~= miPos.z then return end
         local d = RQ.Game.dist(miPos, ldr.pos)
         local maxD = tonumber(C.get("vip.fol.dist", 2)) or 2
         if d > maxD and RQ.Game.hayCamino(ldr.pos, 20) then RQ.Game.irHacia(ldr.pos, 20) end
     end)
-
-    -- MC hunt: publicar
-    RQ.Scheduler.every("rq_vip_mchpub", 500, function()
+    RQ.Scheduler.every("rq_vip_mchpub", 200, function()
         if RQ.tier ~= "VIP" or not C.get("vip.master", true) then return end
         if not C.get("vip.mch.isLeader", false) then return end
         if not RQ.Net.conectado then return end
@@ -3239,8 +3589,7 @@ Panel
         if not C.get("vip.mch.followSame", true) then return end
         if C.get("vip.mch.leader", "") ~= from then return end
         if not data or not data.x then return end
-        local mi = RQ.Game.pos(); if not mi then return end
-        if data.z ~= mi.z then return end
+        local mi = RQ.Game.pos(); if not mi or data.z ~= mi.z then return end
         local d = RQ.Game.dist(mi, {x=data.x, y=data.y})
         if d > 3 and RQ.Game.hayCamino({x=data.x, y=data.y, z=data.z}, 30) then
             RQ.Game.irHacia({x=data.x, y=data.y, z=data.z}, 30)
@@ -3255,21 +3604,8 @@ Panel
         local mi = RQ.Game.pos(); if not mi then return end
         if mi.z == data.zOld and RQ.Game.hayCamino({x=data.x, y=data.y, z=data.zOld}, 20) then
             RQ.Game.irHacia({x=data.x, y=data.y, z=data.zOld}, 20)
-            local key = "rq_vip_use_"..data.x.."_"..data.y
-            RQ.Scheduler.every(key, 400, function()
-                local a = RQ.Game.pos()
-                if a and a.x == data.x and a.y == data.y then
-                    pcall(function()
-                        local t = g_map.getTile({x=data.x, y=data.y, z=a.z})
-                        if t then use(t) end
-                    end)
-                    RQ.Scheduler.remove(key)
-                end
-            end)
         end
     end)
-
-    -- anti-PK
     local pksVistos = {}
     RQ.Scheduler.every("rq_vip_antipk", 1000, function()
         if RQ.tier ~= "VIP" or not C.get("vip.master", true) then return end
@@ -3291,21 +3627,17 @@ Panel
             if os.time() - ts > 30 then pksVistos[nm] = nil end
         end
     end)
-    RQ.Net.on("antipk_alert", function(from, data)
-        if RQ.tier ~= "VIP" or not C.get("vip.master", true) then return end
-        pcall(function() statusMessage("[RScriptz] aviso "..tostring(from)..": "..tostring(data.who).." cerca!") end)
-    end)
 
-    -- reloj + net
     macro(50, "RScriptz Core", function() RQ.Scheduler.tick() end)
     RQ.Scheduler.every("rq_vip_autoconn", 5000, function()
         if not RQ.Net.conectado then RQ.Net.connect(C.get("net.canal", "rq")) end
     end)
-    RQ.Scheduler.every("rq_vip_poll", 300, function() RQ.Net.poll() end)
+    RQ.Scheduler.every("rq_vip_poll", 100, function() RQ.Net.poll() end)
 
     pcall(function() broadcastMessage("RScriptz v"..RQ.version.." VIP cargado - "..RQ.Game.name()) end)
-    RQ.Logger.info("RScriptz", "listo v"..RQ.version.." modo VIP")
+    RQ.Logger.info("RScriptz", "listo v"..RQ.version.." modo VIP (menu)")
 end
+
 
 
 
