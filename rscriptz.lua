@@ -30,7 +30,28 @@ local rqSetupFreeBot   -- FREE
 
 -- ==========================================================
 --  INYECCION DEL OTUI  (definiciones de ventanas modales)
+--  Intenta primero importStyleFromString, si no existe cae al
+--  metodo estandar de vBot: escribir el otui a un archivo temporal
+--  y cargarlo con g_ui.importStyle(path).
 -- ==========================================================
+local function _rqLoadOTUI(content)
+    -- fallback 1: string directo (algunas versiones lo soportan)
+    if g_ui and g_ui.importStyleFromString then
+        local ok = pcall(g_ui.importStyleFromString, content)
+        if ok then return true end
+    end
+    -- fallback 2: escribir a archivo temporal y usar importStyle
+    if g_resources and g_resources.writeFileContents then
+        local path = "/rscriptz_runtime.otui"
+        local ok, err = pcall(function()
+            g_resources.writeFileContents(path, content)
+            g_ui.importStyle(path)
+        end)
+        if ok then return true end
+        pcall(function() statusMessage("[RScriptz] OTUI err: "..tostring(err)) end)
+    end
+    return false
+end
 local OTUI_STR = [==[
 -- ==========================================================
 --  RScriptz.otui  --  ventanas profesionales con listas
@@ -1099,7 +1120,10 @@ RScriptzHubWindow < MainWindow
     margin-right: 5
 
 ]==]
-pcall(function() g_ui.importStyleFromString(OTUI_STR) end)
+local _rqOtuiOk = _rqLoadOTUI(OTUI_STR)
+if not _rqOtuiOk then
+    pcall(function() statusMessage("[RScriptz] OTUI no cargo -- ventanas no funcionaran") end)
+end
 
 -- ==========================================================
 --  VALIDACION DE LICENCIA
@@ -1136,87 +1160,48 @@ end
 -- ==========================================================
 --  SELECTOR FREE / VIP
 -- ==========================================================
-local function showTierSelector()
-    local w = g_ui.createWidget('MainWindow', rootWidget or g_ui.getRootWidget())
-    w:setText("RScriptz v"..RQ.version.." - Elige tu version")
-    w:setSize({width=440, height=260})
-    w:setDraggable(true)
-
-    local title = g_ui.createWidget('Label', w)
-    title:setText("Bienvenido a RScriptz")
-    title:setColor("#D4AF37")
-    title:setTextAlign(AlignCenter)
-    title:addAnchor(AnchorTop, 'parent', AnchorTop)
-    title:addAnchor(AnchorLeft, 'parent', AnchorLeft)
-    title:addAnchor(AnchorRight, 'parent', AnchorRight)
-    title:setMarginTop(4)
-
-    local sub = g_ui.createWidget('Label', w)
-    sub:setText("Elegi que version queres correr")
-    sub:setColor("#C8C8C8")
-    sub:setTextAlign(AlignCenter)
-    sub:addAnchor(AnchorTop, 'prev', AnchorBottom)
-    sub:addAnchor(AnchorLeft, 'parent', AnchorLeft)
-    sub:addAnchor(AnchorRight, 'parent', AnchorRight)
-    sub:setMarginTop(6)
-
-    -- boton FREE
-    local btnFree = g_ui.createWidget('Button', w)
-    btnFree:setText("FREE\n(Healing + Follow)")
-    btnFree:setSize({width=180, height=80})
-    btnFree:addAnchor(AnchorTop, 'prev', AnchorBottom)
-    btnFree:addAnchor(AnchorRight, 'parent', AnchorHorizontalCenter)
-    btnFree:setMarginTop(20); btnFree:setMarginRight(10)
-    btnFree:setBackgroundColor("#3A7A3A")
-
-    -- boton VIP
-    local btnVip = g_ui.createWidget('Button', w)
-    btnVip:setText("VIP\n(Todo + Multi-cuenta)")
-    btnVip:setSize({width=180, height=80})
-    btnVip:addAnchor(AnchorTop, 'prev', AnchorTop)
-    btnVip:addAnchor(AnchorLeft, 'parent', AnchorHorizontalCenter)
-    btnVip:setMarginLeft(10)
-    btnVip:setBackgroundColor("#B28B00")
-
-    local hint = g_ui.createWidget('Label', w)
-    hint:setText("Podes cambiar despues desde la pestana RQ")
-    hint:setColor("#8A8A8A")
-    hint:setTextAlign(AlignCenter)
-    hint:addAnchor(AnchorBottom, 'parent', AnchorBottom)
-    hint:addAnchor(AnchorLeft, 'parent', AnchorLeft)
-    hint:addAnchor(AnchorRight, 'parent', AnchorRight)
-    hint:setMarginBottom(10)
-
-    btnFree.onClick = function()
-        storage.rscriptz_tier = "FREE"
-        w:destroy()
-        RQ.tier = "FREE"
-        rqSetupFreeBot()
-        pcall(function() whiteInfoMessage("[RScriptz] Modo FREE activado") end)
-    end
-
-    btnVip.onClick = function()
-        local charName = ""
-        pcall(function() charName = player:getName() end)
-        modules.client_textedit.show(nil, {
-            title = "License Key VIP",
-            description = "Ingresa tu key de RScriptz VIP (contacta al vendedor si no tenes)",
-        }, function(key)
-            if not key or key == "" then return end
-            validateLicense(key, charName, function(ok, reason)
-                if ok then
-                    storage.rscriptz_tier = "VIP"
-                    storage.rscriptz_key = key
-                    w:destroy()
-                    RQ.tier = "VIP"
-                    rqSetupFullBot()
-                    pcall(function() whiteInfoMessage("[RScriptz] Modo VIP activado (key "..key..")") end)
-                else
-                    pcall(function() displayErrorBox("RScriptz VIP", "Key rechazada: "..(reason or "?")) end)
-                end
-            end)
+local function _askForKey()
+    local charName = ""
+    pcall(function() charName = player:getName() end)
+    modules.client_textedit.show(nil, {
+        title = "License Key VIP",
+        description = "Ingresa tu key de RScriptz VIP\n(contacta al vendedor si no tenes)",
+    }, function(key)
+        if not key or key == "" then return end
+        validateLicense(key, charName, function(ok, reason)
+            if ok then
+                storage.rscriptz_tier = "VIP"
+                storage.rscriptz_key = key
+                RQ.tier = "VIP"
+                rqSetupFullBot()
+                pcall(function() whiteInfoMessage("[RScriptz] Modo VIP activado (key "..key..")") end)
+            else
+                pcall(function() displayErrorBox("RScriptz VIP", "Key rechazada: "..(reason or "?")) end)
+            end
         end)
-    end
+    end)
+end
+
+local function showTierSelector()
+    -- Usa displayGeneralBox nativo de OTClient -- garantizado que funciona,
+    -- no depende de anchors ni constantes de la version del cliente.
+    displayGeneralBox(
+        "RScriptz v"..RQ.version,
+        "Bienvenido a RScriptz.\n\nElegi que version queres correr:\n\n"..
+        "FREE  -- Healing (spells + pociones) + Follow basico\n"..
+        "VIP   -- Todo (Spells, Runes, Target, MC Hunt, Anti-PK, Hub)",
+        {
+            {text = "VIP", callback = function()
+                _askForKey()
+            end},
+            {text = "FREE", callback = function()
+                storage.rscriptz_tier = "FREE"
+                RQ.tier = "FREE"
+                rqSetupFreeBot()
+                pcall(function() whiteInfoMessage("[RScriptz] Modo FREE activado") end)
+            end},
+        }
+    )
 end
 
 -- ==========================================================
