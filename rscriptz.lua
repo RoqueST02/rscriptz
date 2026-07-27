@@ -34,30 +34,48 @@ local rqSetupFreeBot   -- FREE
 --  metodo estandar de vBot: escribir el otui a un archivo temporal
 --  y cargarlo con g_ui.importStyle(path).
 -- ==========================================================
+local function _rqSay(msg)
+    pcall(function() whiteInfoMessage("[RScriptz] "..tostring(msg)) end)
+    pcall(function() print("[RScriptz] "..tostring(msg)) end)
+end
+
 local function _rqLoadOTUI(content)
-    -- fallback 1: string directo (algunas versiones lo soportan)
+    -- fallback 1: string directo
     if g_ui and g_ui.importStyleFromString then
-        local ok = pcall(g_ui.importStyleFromString, content)
-        if ok then return true end
+        local ok, err = pcall(g_ui.importStyleFromString, content)
+        if ok then _rqSay("OTUI cargado via importStyleFromString"); return true end
+        _rqSay("importStyleFromString fallo: "..tostring(err))
+    else
+        _rqSay("importStyleFromString no existe en este cliente")
     end
-    -- fallback 2: escribir a archivo temporal y usar importStyle
+    -- fallback 2: archivo temporal (varias rutas por si acaso)
     if g_resources and g_resources.writeFileContents then
-        local path = "/rscriptz_runtime.otui"
-        local ok, err = pcall(function()
-            g_resources.writeFileContents(path, content)
-            g_ui.importStyle(path)
-        end)
-        if ok then return true end
-        pcall(function() statusMessage("[RScriptz] OTUI err: "..tostring(err)) end)
+        for _, path in ipairs({"rscriptz_runtime.otui", "/rscriptz_runtime.otui", "/bot/rscriptz_runtime.otui"}) do
+            local ok, err = pcall(function()
+                g_resources.writeFileContents(path, content)
+                g_ui.importStyle(path)
+            end)
+            if ok then _rqSay("OTUI cargado via archivo: "..path); return true end
+            _rqSay("archivo "..path.." fallo: "..tostring(err))
+        end
+    else
+        _rqSay("g_resources.writeFileContents no existe")
     end
     return false
 end
-local OTUI_STR = [==[
--- ==========================================================
---  RScriptz.otui  --  ventanas profesionales con listas
--- ==========================================================
 
--- ---------- widgets base ----------
+-- helper: verifica si un estilo OTUI esta registrado
+local function _rqStyleExists(name)
+    if not g_ui or not g_ui.getStyle then return false end
+    local ok, style = pcall(g_ui.getStyle, name)
+    return ok and style ~= nil
+end
+local OTUI_STR = [==[
+
+
+
+
+
 RQTitle < Label
   text-align: center
   font: verdana-11px-rounded
@@ -100,7 +118,7 @@ RQBigButton < Button
   height: 22
   font: cipsoftFont
 
--- filas de listas -----------------------------------------
+
 RQSpellEntry < Label
   background-color: alpha
   text-offset: 22 1
@@ -182,9 +200,9 @@ RQNameEntry < Label
     width: 15
     height: 15
 
--- ==========================================================
---  HEALING WINDOW  (IDs unicos por cada seccion)
--- ==========================================================
+
+
+
 RScriptzHealingWindow < MainWindow
   !text: tr('RScriptz - Healing (curaciones)')
   size: 520 640
@@ -211,7 +229,7 @@ RScriptzHealingWindow < MainWindow
     anchors.right: parent.right
     margin-left: 10
 
-  -- ============ SPELL HEAL ============
+
   RQGroupTitle
     id: t1
     anchors.top: voc.bottom
@@ -302,7 +320,7 @@ RScriptzHealingWindow < MainWindow
     size: 60 20
     font: cipsoftFont
 
-  -- ============ POCIONES HP ============
+
   RQGroupTitle
     id: t2
     anchors.top: spellUp.bottom
@@ -379,7 +397,7 @@ RScriptzHealingWindow < MainWindow
     size: 60 20
     font: cipsoftFont
 
-  -- ============ POCIONES MP ============
+
   RQGroupTitle
     id: t3
     anchors.top: hpUp.bottom
@@ -472,9 +490,9 @@ RScriptzHealingWindow < MainWindow
     size: 55 21
     margin-right: 5
 
--- ==========================================================
---  SPELLS ATAQUE WINDOW
--- ==========================================================
+
+
+
 RScriptzSpellsWindow < MainWindow
   !text: tr('RScriptz - Spells de ataque')
   size: 520 420
@@ -607,9 +625,9 @@ RScriptzSpellsWindow < MainWindow
     size: 55 21
     margin-right: 5
 
--- ==========================================================
---  RUNES WINDOW
--- ==========================================================
+
+
+
 RScriptzRunesWindow < MainWindow
   !text: tr('RScriptz - Runes')
   size: 540 430
@@ -741,9 +759,9 @@ RScriptzRunesWindow < MainWindow
     size: 55 21
     margin-right: 5
 
--- ==========================================================
---  TARGET WINDOW
--- ==========================================================
+
+
+
 RScriptzTargetWindow < MainWindow
   !text: tr('RScriptz - Auto Target')
   size: 380 240
@@ -804,9 +822,9 @@ RScriptzTargetWindow < MainWindow
     size: 55 21
     margin-right: 5
 
--- ==========================================================
---  FOLLOW WINDOW
--- ==========================================================
+
+
+
 RScriptzFollowWindow < MainWindow
   !text: tr('RScriptz - Follow')
   size: 380 220
@@ -868,9 +886,9 @@ RScriptzFollowWindow < MainWindow
     size: 55 21
     margin-right: 5
 
--- ==========================================================
---  MC HUNT WINDOW
--- ==========================================================
+
+
+
 RScriptzMCHuntWindow < MainWindow
   !text: tr('RScriptz - MC Hunt')
   size: 400 340
@@ -958,9 +976,9 @@ RScriptzMCHuntWindow < MainWindow
     size: 55 21
     margin-right: 5
 
--- ==========================================================
---  ANTI-PK WINDOW
--- ==========================================================
+
+
+
 RScriptzAntiPKWindow < MainWindow
   !text: tr('RScriptz - Anti-PK')
   size: 400 400
@@ -1044,9 +1062,9 @@ RScriptzAntiPKWindow < MainWindow
     size: 55 21
     margin-right: 5
 
--- ==========================================================
---  HUB WINDOW
--- ==========================================================
+
+
+
 RScriptzHubWindow < MainWindow
   !text: tr('RScriptz - Conexion HUB')
   size: 380 300
@@ -1121,8 +1139,15 @@ RScriptzHubWindow < MainWindow
 
 ]==]
 local _rqOtuiOk = _rqLoadOTUI(OTUI_STR)
-if not _rqOtuiOk then
-    pcall(function() statusMessage("[RScriptz] OTUI no cargo -- ventanas no funcionaran") end)
+_rqSay("OTUI status: "..tostring(_rqOtuiOk))
+-- verificar que al menos una clase se registro
+if _rqOtuiOk then
+    if _rqStyleExists('RScriptzHubWindow') then
+        _rqSay("clase RScriptzHubWindow REGISTRADA -- ventanas listas")
+    else
+        _rqSay("OTUI cargo pero clases NO se registraron -- forzando fallo")
+        _rqOtuiOk = false
+    end
 end
 
 -- ==========================================================
@@ -1173,8 +1198,13 @@ local function _askForKey()
                 storage.rscriptz_tier = "VIP"
                 storage.rscriptz_key = key
                 RQ.tier = "VIP"
-                rqSetupFullBot()
-                pcall(function() whiteInfoMessage("[RScriptz] Modo VIP activado (key "..key..")") end)
+                local sok, serr = pcall(rqSetupFullBot)
+                if sok then
+                    pcall(function() whiteInfoMessage("[RScriptz] Modo VIP activado (key "..key..")") end)
+                else
+                    _rqSay("ERROR setup VIP: "..tostring(serr))
+                    pcall(rqSetupFreeBot)
+                end
             else
                 pcall(function() displayErrorBox("RScriptz VIP", "Key rechazada: "..(reason or "?")) end)
             end
@@ -1183,21 +1213,25 @@ local function _askForKey()
 end
 
 local function showTierSelector()
-    -- Usa displayGeneralBox nativo de OTClient -- garantizado que funciona,
-    -- no depende de anchors ni constantes de la version del cliente.
-    displayGeneralBox(
+    -- Usa displayGeneralBox nativo. Capturamos el widget para poder cerrarlo
+    -- manualmente en el callback (algunas versiones no lo cierran solas).
+    local box
+    box = displayGeneralBox(
         "RScriptz v"..RQ.version,
         "Bienvenido a RScriptz.\n\nElegi que version queres correr:\n\n"..
-        "FREE  -- Healing (spells + pociones) + Follow basico\n"..
-        "VIP   -- Todo (Spells, Runes, Target, MC Hunt, Anti-PK, Hub)",
+        "FREE  -- Solo Curacion + Haste\n"..
+        "VIP   -- Todo (Healing avanzado, Spells, Runes, Target,\n"..
+        "         MC Hunt, Anti-PK, Hub multi-cuenta)",
         {
             {text = "VIP", callback = function()
+                pcall(function() box:destroy() end)
                 _askForKey()
             end},
             {text = "FREE", callback = function()
+                pcall(function() box:destroy() end)
                 storage.rscriptz_tier = "FREE"
                 RQ.tier = "FREE"
-                rqSetupFreeBot()
+                pcall(rqSetupFreeBot)
                 pcall(function() whiteInfoMessage("[RScriptz] Modo FREE activado") end)
             end},
         }
@@ -1531,7 +1565,7 @@ rqSetupFreeBot = function()
     setDefaultTab("RQ")
     local ui = setupUI([[
 Panel
-  height: 152
+  height: 210
 
   Label
     id: brand
@@ -1551,7 +1585,7 @@ Panel
     anchors.left: parent.left
     anchors.right: parent.right
     text-align: center
-    text: Version limitada: Healing + Follow
+    text: Version basica: Curacion + Haste
     font: verdana-11px-rounded
     color: #8A8A8A
     background-color: #1A1A1A
@@ -1564,28 +1598,100 @@ Panel
     anchors.right: parent.right
     margin-top: 6
     height: 20
-    !text: tr('HEALING (spells + pociones)')
+    !text: tr('CURACION (spell auto)')
 
-  BotSwitch
-    id: swFollow
+  Label
+    id: healLbl
     anchors.top: prev.bottom
     anchors.left: parent.left
-    anchors.right: parent.right
+    text: Spell:
+    color: #C8C8C8
+    font: verdana-11px-rounded
+    height: 14
     margin-top: 4
+    width: 40
+
+  TextEdit
+    id: healSpell
+    anchors.top: prev.top
+    anchors.left: prev.right
+    anchors.right: parent.horizontalCenter
+    margin-left: 4
+
+  Label
+    id: healHpLbl
+    anchors.top: healLbl.top
+    anchors.left: parent.horizontalCenter
+    text: HP<=
+    color: #C8C8C8
+    font: verdana-11px-rounded
+    height: 14
+    width: 34
+    margin-left: 6
+
+  TextEdit
+    id: healHp
+    anchors.top: prev.top
+    anchors.left: prev.right
+    anchors.right: parent.right
+    margin-left: 4
+
+  BotSwitch
+    id: swHaste
+    anchors.top: healSpell.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    margin-top: 8
     height: 20
-    !text: tr('FOLLOW basico')
+    !text: tr('HASTE (spell auto)')
+
+  Label
+    id: hasteLbl
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    text: Spell:
+    color: #C8C8C8
+    font: verdana-11px-rounded
+    height: 14
+    margin-top: 4
+    width: 40
+
+  TextEdit
+    id: hasteSpell
+    anchors.top: prev.top
+    anchors.left: prev.right
+    anchors.right: parent.horizontalCenter
+    margin-left: 4
+
+  Label
+    id: hasteCdLbl
+    anchors.top: hasteLbl.top
+    anchors.left: parent.horizontalCenter
+    text: cada s
+    color: #C8C8C8
+    font: verdana-11px-rounded
+    height: 14
+    width: 34
+    margin-left: 6
+
+  TextEdit
+    id: hasteCd
+    anchors.top: prev.top
+    anchors.left: prev.right
+    anchors.right: parent.right
+    margin-left: 4
 
   Label
     id: locked
-    anchors.top: prev.bottom
+    anchors.top: hasteSpell.bottom
     anchors.left: parent.left
     anchors.right: parent.right
     text-align: center
-    text: (Spells, Runes, Target, MC Hunt, Anti-PK: solo VIP)
+    text: (Todo lo demas: solo VIP)
     font: verdana-11px-rounded
     color: #C83C3C
-    height: 16
-    margin-top: 6
+    height: 14
+    margin-top: 8
 
   Button
     id: upgradeBtn
@@ -1596,78 +1702,70 @@ Panel
     color: #FFFFFF
     background-color: #B28B00
     font: cipsoftFont
-    height: 24
+    height: 22
     margin-top: 4
 ]])
 
     -- defaults minimos
     local C = RQ.Config
-    C.ensure("heal.spells", {{enabled=true, spell="exura", hpBelow=90, minMp=5}})
-    C.ensure("heal.hpPots", {{enabled=true, itemId=266, hpBelow=60}})
-    C.ensure("heal.mpPots", {{enabled=true, itemId=268, mpBelow=30}})
-    C.ensure("heal.on", true)
-    C.ensure("follow.on", false)
-    C.ensure("follow.leader", "")
-    C.ensure("follow.maxDist", 2)
+    C.ensure("free.healOn", true)
+    C.ensure("free.healSpell", "exura")
+    C.ensure("free.healHp", 80)
+    C.ensure("free.hasteOn", true)
+    C.ensure("free.hasteSpell", "utani hur")
+    C.ensure("free.hasteCd", 20)   -- segundos entre casts de haste
 
-    ui.swHeal:setOn(C.get("heal.on", true))
+    ui.swHeal:setOn(C.get("free.healOn", true))
     ui.swHeal.onClick = function(w)
-        local n = not C.get("heal.on", true); C.set("heal.on", n); w:setOn(n)
+        local n = not C.get("free.healOn", true); C.set("free.healOn", n); w:setOn(n)
     end
-    ui.swFollow:setOn(C.get("follow.on", false))
-    ui.swFollow.onClick = function(w)
-        local n = not C.get("follow.on", false); C.set("follow.on", n); w:setOn(n)
+    ui.healSpell:setText(C.get("free.healSpell", "exura"))
+    ui.healSpell.onTextChange = function(_, t) if t and t ~= "" then C.set("free.healSpell", t) end end
+    ui.healHp:setText(tostring(C.get("free.healHp", 80)))
+    ui.healHp.onTextChange = function(_, t) local n = tonumber(t); if n then C.set("free.healHp", n) end end
+
+    ui.swHaste:setOn(C.get("free.hasteOn", true))
+    ui.swHaste.onClick = function(w)
+        local n = not C.get("free.hasteOn", true); C.set("free.hasteOn", n); w:setOn(n)
     end
+    ui.hasteSpell:setText(C.get("free.hasteSpell", "utani hur"))
+    ui.hasteSpell.onTextChange = function(_, t) if t and t ~= "" then C.set("free.hasteSpell", t) end end
+    ui.hasteCd:setText(tostring(C.get("free.hasteCd", 20)))
+    ui.hasteCd.onTextChange = function(_, t) local n = tonumber(t); if n and n > 0 then C.set("free.hasteCd", n) end end
 
     ui.upgradeBtn.onClick = function()
-        storage.rscriptz_tier = nil
-        pcall(function() displayInfoBox("RScriptz",
-            "Reinicia el cliente para ingresar tu key VIP.\n"..
-            "Contacta al vendedor si aun no tenes key.") end)
+        pcall(function() displayGeneralBox("Upgrade a VIP",
+            "Para activar VIP:\n\n"..
+            "1. Contacta al vendedor por la license key.\n"..
+            "2. Cierra Mayas.\n"..
+            "3. Ejecuta esto en la consola del cliente:\n"..
+            "     /lua storage.rscriptz_tier = nil\n"..
+            "4. Vuelve a abrir Mayas y elige VIP.",
+            {{text = "OK", callback = function() end}}) end)
     end
 
     -- macros FREE
-    macro(200, "RScriptz FREE: Healing spells", function()
-        if not C.get("heal.on", true) then return end
-        local hp = RQ.Game.hp(); local mp = RQ.Game.mana()
-        for _, r in ipairs(C.list("heal.spells")) do
-            if r.enabled and hp <= (r.hpBelow or 0) and mp >= (r.minMp or 0) then
-                cast(r.spell, 900); return
-            end
-        end
-    end)
-    macro(200, "RScriptz FREE: Healing HP pots", function()
-        if not C.get("heal.on", true) then return end
+    macro(200, "RScriptz FREE: Curacion", function()
+        if not C.get("free.healOn", true) then return end
         local hp = RQ.Game.hp()
-        for _, r in ipairs(C.list("heal.hpPots")) do
-            if r.enabled and hp <= (r.hpBelow or 0) then
-                useOnYourself(tonumber(r.itemId) or 266); return
-            end
+        local threshold = tonumber(C.get("free.healHp", 80)) or 80
+        if hp <= threshold then
+            cast(C.get("free.healSpell", "exura"), 900)
         end
     end)
-    macro(200, "RScriptz FREE: Healing MP pots", function()
-        if not C.get("heal.on", true) then return end
-        local mp = RQ.Game.mana()
-        for _, r in ipairs(C.list("heal.mpPots")) do
-            if r.enabled and mp <= (r.mpBelow or 0) then
-                useOnYourself(tonumber(r.itemId) or 268); return
-            end
-        end
-    end)
-    macro(300, "RScriptz FREE: Follow", function()
-        if not C.get("follow.on", false) then return end
-        local nom = C.get("follow.leader", ""); if nom == "" then return end
-        local ldr = RQ.Game.jugadorPorNombre(nom); if not ldr or not ldr.pos then return end
-        local miPos = RQ.Game.pos(); if not miPos then return end
-        if ldr.pos.z ~= miPos.z then return end
-        local d = RQ.Game.dist(miPos, ldr.pos)
-        if d > C.get("follow.maxDist", 2) then
-            if RQ.Game.hayCamino(ldr.pos, 20) then RQ.Game.irHacia(ldr.pos, 20) end
-        end
-    end)
-    macro(50, "RScriptz Core", function() RQ.Scheduler.tick() end)
 
-    RQ.Logger.info("RScriptz", "listo v"..RQ.version.." modo FREE")
+    local lastHaste = 0
+    macro(500, "RScriptz FREE: Haste", function()
+        if not C.get("free.hasteOn", true) then return end
+        local cd = (tonumber(C.get("free.hasteCd", 20)) or 20) * 1000
+        local nowMs = g_clock.millis()
+        if nowMs - lastHaste >= cd then
+            cast(C.get("free.hasteSpell", "utani hur"), 900)
+            lastHaste = nowMs
+        end
+    end)
+
+    RQ.Logger.info("RScriptz", "listo v"..RQ.version.." modo FREE (curacion + haste)")
 end
 
 -- ==========================================================
@@ -2681,18 +2779,40 @@ rqSetupFullBot = function()
 end
 
 -- ==========================================================
---  ARRANQUE: si ya hay tier guardado revalidar y correr, sino selector
+--  ARRANQUE
 -- ==========================================================
+
+-- si el OTUI no cargo, VIP no puede correr (necesita las ventanas modales).
+-- forzamos FREE (que usa solo widgets estandar via setupUI, sin depender del OTUI externo).
+if not _rqOtuiOk then
+    _rqSay("MODO FREE FORZADO -- ventanas VIP no disponibles sin OTUI")
+    _rqSay("(revisa los mensajes de arriba para saber por que fallo el OTUI)")
+    RQ.tier = "FREE"
+    local ok, err = pcall(rqSetupFreeBot)
+    if not ok then _rqSay("ERROR setup FREE: "..tostring(err)) end
+    return
+end
+
+-- OTUI OK: seguimos con la logica normal de tier
 local savedTier = storage.rscriptz_tier
 local savedKey  = storage.rscriptz_key
+
+local function _runFullBotSafe()
+    local ok, err = pcall(rqSetupFullBot)
+    if not ok then
+        _rqSay("ERROR setup VIP: "..tostring(err))
+        _rqSay("cayendo a FREE por seguridad")
+        pcall(rqSetupFreeBot)
+    end
+end
+
 if savedTier == "VIP" and savedKey then
-    -- revalidacion silenciosa
     local charName = ""
     pcall(function() charName = player:getName() end)
     validateLicense(savedKey, charName, function(ok, reason)
         if ok then
             RQ.tier = "VIP"
-            rqSetupFullBot()
+            _runFullBotSafe()
         else
             storage.rscriptz_tier = nil
             storage.rscriptz_key = nil
@@ -2703,7 +2823,8 @@ if savedTier == "VIP" and savedKey then
     end)
 elseif savedTier == "FREE" then
     RQ.tier = "FREE"
-    rqSetupFreeBot()
+    local ok, err = pcall(rqSetupFreeBot)
+    if not ok then _rqSay("ERROR setup FREE: "..tostring(err)) end
 else
     showTierSelector()
 end
