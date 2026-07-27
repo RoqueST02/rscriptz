@@ -2943,34 +2943,69 @@ Panel
         for _, o in ipairs(opts) do pcall(function() combo:addOption(o) end) end
         if current then pcall(function() combo:setCurrentOption(current) end) end
     end
+    -- versiones hyper-defensivas: cada operacion en pcall, si un widget
+    -- falla al bindear no rompe el resto del setup.
     local function bindSwitch(w, key, def)
-        w:setOn(C.get(key, def))
-        w.onClick = function() local n = not C.get(key, def); C.set(key, n); w:setOn(n) end
+        if not w then return end
+        pcall(function() w:setOn(C.get(key, def) and true or false) end)
+        pcall(function()
+            w.onClick = function()
+                local n = not C.get(key, def)
+                C.set(key, n)
+                pcall(function() w:setOn(n) end)
+            end
+        end)
     end
     local function bindItem(w, key, def)
-        pcall(function() w:setItemId(tonumber(C.get(key, def)) or def) end)
-        w.onItemChange = function(x) C.set(key, x:getItemId()) end
+        if not w then return end
+        pcall(function() w:setItemId(tonumber(C.get(key, def)) or tonumber(def) or 0) end)
+        pcall(function()
+            w.onItemChange = function(x)
+                local id = 0
+                pcall(function() id = x:getItemId() end)
+                C.set(key, id)
+            end
+        end)
     end
     local function bindSlider(slider, label, key, def, fmt)
-        local function refresh() pcall(function() label:setText(fmt:format(C.get(key, def))) end) end
-        slider:setValue(C.get(key, def))
+        if not slider then return end
+        local function refresh()
+            pcall(function()
+                if label then
+                    local v = C.get(key, def) or def or 0
+                    label:setText(string.format(tostring(fmt or "%s"), v))
+                end
+            end)
+        end
+        pcall(function() slider:setValue(tonumber(C.get(key, def)) or tonumber(def) or 0) end)
         refresh()
-        slider.onValueChange = function(_, v) C.set(key, v); refresh() end
+        pcall(function()
+            slider.onValueChange = function(_, v) C.set(key, v); refresh() end
+        end)
     end
     local function bindText(w, key, def)
-        pcall(function() w:setText(C.get(key, def) or "") end)
-        w.onTextChange = function(_, t) C.set(key, t or "") end
+        if not w then return end
+        pcall(function() w:setText(tostring(C.get(key, def) or "")) end)
+        pcall(function()
+            w.onTextChange = function(_, t) C.set(key, t or "") end
+        end)
     end
     local function bindCombo(w, key)
-        w.onOptionChange = function(x)
-            local o = x:getCurrentOption()
-            if o and o.text then C.set(key, o.text) end
-        end
+        if not w then return end
+        pcall(function()
+            w.onOptionChange = function(x)
+                local o
+                pcall(function() o = x:getCurrentOption() end)
+                if o and o.text then C.set(key, o.text) end
+            end
+        end)
     end
 
     -- master + vocacion + net label ------------------------------------
+    _rqSay("VIP paso 1: bind master switch")
     bindSwitch(ui.master, "vip.master", true)
-    fillCombo(ui.voc, RQ.Catalog.vocations, C.get("vip.voc"))
+    _rqSay("VIP paso 2: fillCombo vocacion (voc="..tostring(C.get("vip.voc"))..")")
+    pcall(function() fillCombo(ui.voc, RQ.Catalog.vocations, C.get("vip.voc")) end)
     ui.voc.onOptionChange = function(w)
         local o = w:getCurrentOption(); local t = o and o.text or nil
         if not t then return end
@@ -2982,33 +3017,40 @@ Panel
     end
 
     -- HP pots ----------------------------------------------------------
+    _rqSay("VIP paso 3: HP pots")
     for i=1,3 do
-        bindSwitch(ui["hp"..i.."on"], "vip.hp"..i..".on", i==1)
-        bindItem(ui["hp"..i.."item"], "vip.hp"..i..".item", defHp[i])
-        bindSlider(ui["hp"..i.."pct"], ui["hp"..i.."txt"], "vip.hp"..i..".pct", defHpPct[i], "HP<= %d%%")
+        pcall(function() bindSwitch(ui["hp"..i.."on"], "vip.hp"..i..".on", i==1) end)
+        pcall(function() bindItem(ui["hp"..i.."item"], "vip.hp"..i..".item", defHp[i]) end)
+        pcall(function() bindSlider(ui["hp"..i.."pct"], ui["hp"..i.."txt"], "vip.hp"..i..".pct", defHpPct[i], "HP<= %d%%") end)
     end
 
     -- MP pots ----------------------------------------------------------
+    _rqSay("VIP paso 4: MP pots")
     for i=1,3 do
-        bindSwitch(ui["mp"..i.."on"], "vip.mp"..i..".on", i==1)
-        bindItem(ui["mp"..i.."item"], "vip.mp"..i..".item", defMp[i])
-        bindSlider(ui["mp"..i.."pct"], ui["mp"..i.."txt"], "vip.mp"..i..".pct", defMpPct[i], "MP<= %d%%")
+        pcall(function() bindSwitch(ui["mp"..i.."on"], "vip.mp"..i..".on", i==1) end)
+        pcall(function() bindItem(ui["mp"..i.."item"], "vip.mp"..i..".item", defMp[i]) end)
+        pcall(function() bindSlider(ui["mp"..i.."pct"], ui["mp"..i.."txt"], "vip.mp"..i..".pct", defMpPct[i], "MP<= %d%%") end)
     end
 
     -- Attack spells ----------------------------------------------------
+    _rqSay("VIP paso 5: Attack spells")
+    local currentVoc = tostring(C.get("vip.voc") or "EK")
+    local attackList = RQ.Catalog.attackSpells[currentVoc] or {}
     for i=1,3 do
-        bindSwitch(ui["atk"..i.."on"], "vip.atk"..i..".on", false)
-        fillCombo(ui["atk"..i.."spell"], RQ.Catalog.attackSpells[C.get("vip.voc")] or {}, C.get("vip.atk"..i..".spell"))
-        bindCombo(ui["atk"..i.."spell"], "vip.atk"..i..".spell")
-        bindSlider(ui["atk"..i.."cd"], ui["atk"..i.."txt"], "vip.atk"..i..".cd", 2000, "cada %d ms")
+        pcall(function() bindSwitch(ui["atk"..i.."on"], "vip.atk"..i..".on", false) end)
+        pcall(function() fillCombo(ui["atk"..i.."spell"], attackList, C.get("vip.atk"..i..".spell")) end)
+        pcall(function() bindCombo(ui["atk"..i.."spell"], "vip.atk"..i..".spell") end)
+        pcall(function() bindSlider(ui["atk"..i.."cd"], ui["atk"..i.."txt"], "vip.atk"..i..".cd", 2000, "cada %d ms") end)
     end
 
     -- Extras -----------------------------------------------------------
+    _rqSay("VIP paso 6: Extras")
     for i=1,3 do
-        bindSwitch(ui["ex"..i.."on"], "vip.ex"..i..".on", false)
-        bindText(ui["ex"..i.."spell"], "vip.ex"..i..".spell", "")
-        bindSlider(ui["ex"..i.."cd"], ui["ex"..i.."txt"], "vip.ex"..i..".cd", 5, "cada %d seg")
+        pcall(function() bindSwitch(ui["ex"..i.."on"], "vip.ex"..i..".on", false) end)
+        pcall(function() bindText(ui["ex"..i.."spell"], "vip.ex"..i..".spell", "") end)
+        pcall(function() bindSlider(ui["ex"..i.."cd"], ui["ex"..i.."txt"], "vip.ex"..i..".cd", 5, "cada %d seg") end)
     end
+    _rqSay("VIP paso 7: Target/Follow/MCH/PK/Hub")
 
     -- Target -----------------------------------------------------------
     bindSwitch(ui.tgtOn, "vip.tgt.on", false)
