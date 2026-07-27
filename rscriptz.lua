@@ -1198,9 +1198,16 @@ local function _askForKey()
                 storage.rscriptz_tier = "VIP"
                 storage.rscriptz_key = key
                 RQ.tier = "VIP"
+                -- si venimos del panel FREE, destruirlo antes de montar VIP
+                if RQ._freePanel then
+                    pcall(function() RQ._freePanel:destroy() end)
+                    RQ._freePanel = nil
+                end
                 local sok, serr = pcall(rqSetupFullBot)
                 if sok then
-                    pcall(function() whiteInfoMessage("[RScriptz] Modo VIP activado (key "..key..")") end)
+                    pcall(function() displayInfoBox("RScriptz VIP",
+                        "Modo VIP activado con la key:\n"..key.."\n\n"..
+                        "Todos los modulos disponibles en la pestana RQ.") end)
                 else
                     _rqSay("ERROR setup VIP: "..tostring(serr))
                     pcall(rqSetupFreeBot)
@@ -1561,11 +1568,19 @@ end
 -- ==========================================================
 --  SETUP FREE  (Healing + Follow solamente, resto bloqueado)
 -- ==========================================================
+-- catalogo de spells de haste por vocacion (para el modo FREE)
+RQ.Catalog.hasteSpells = {
+    Knight   = {"utani hur", "utani gran hur"},
+    Paladin  = {"utani hur", "utani gran hur"},
+    Druid    = {"utani hur"},
+    Sorcerer = {"utani hur", "utani gran hur"},
+}
+
 rqSetupFreeBot = function()
     setDefaultTab("RQ")
     local ui = setupUI([[
 Panel
-  height: 210
+  height: 260
 
   Label
     id: brand
@@ -1585,23 +1600,41 @@ Panel
     anchors.left: parent.left
     anchors.right: parent.right
     text-align: center
-    text: Version basica: Curacion + Haste
+    text: Curacion + Haste
     font: verdana-11px-rounded
     color: #8A8A8A
     background-color: #1A1A1A
     height: 16
+
+  Label
+    id: vocLbl
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    text: Vocacion:
+    color: #C8C8C8
+    font: verdana-11px-rounded
+    height: 14
+    margin-top: 6
+    width: 60
+
+  ComboBox
+    id: voc
+    anchors.top: prev.top
+    anchors.left: prev.right
+    anchors.right: parent.right
+    margin-left: 4
 
   BotSwitch
     id: swHeal
     anchors.top: prev.bottom
     anchors.left: parent.left
     anchors.right: parent.right
-    margin-top: 6
+    margin-top: 8
     height: 20
-    !text: tr('CURACION (spell auto)')
+    !text: tr('CURACION')
 
   Label
-    id: healLbl
+    id: healSpellLbl
     anchors.top: prev.bottom
     anchors.left: parent.left
     text: Spell:
@@ -1609,44 +1642,49 @@ Panel
     font: verdana-11px-rounded
     height: 14
     margin-top: 4
-    width: 40
+    width: 60
 
-  TextEdit
+  ComboBox
     id: healSpell
     anchors.top: prev.top
     anchors.left: prev.right
-    anchors.right: parent.horizontalCenter
-    margin-left: 4
-
-  Label
-    id: healHpLbl
-    anchors.top: healLbl.top
-    anchors.left: parent.horizontalCenter
-    text: HP<=
-    color: #C8C8C8
-    font: verdana-11px-rounded
-    height: 14
-    width: 34
-    margin-left: 6
-
-  TextEdit
-    id: healHp
-    anchors.top: prev.top
-    anchors.left: prev.right
     anchors.right: parent.right
     margin-left: 4
 
+  Label
+    id: healHpText
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text-align: center
+    text: Curar cuando HP<= 80%
+    color: #E8E8E8
+    font: verdana-11px-rounded
+    height: 14
+    margin-top: 4
+
+  HorizontalScrollBar
+    id: healHp
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    minimum: 10
+    maximum: 100
+    step: 5
+    height: 16
+    margin-top: 2
+
   BotSwitch
     id: swHaste
-    anchors.top: healSpell.bottom
+    anchors.top: prev.bottom
     anchors.left: parent.left
     anchors.right: parent.right
     margin-top: 8
     height: 20
-    !text: tr('HASTE (spell auto)')
+    !text: tr('HASTE')
 
   Label
-    id: hasteLbl
+    id: hasteSpellLbl
     anchors.top: prev.bottom
     anchors.left: parent.left
     text: Spell:
@@ -1654,44 +1692,37 @@ Panel
     font: verdana-11px-rounded
     height: 14
     margin-top: 4
-    width: 40
+    width: 60
 
-  TextEdit
+  ComboBox
     id: hasteSpell
     anchors.top: prev.top
     anchors.left: prev.right
-    anchors.right: parent.horizontalCenter
-    margin-left: 4
-
-  Label
-    id: hasteCdLbl
-    anchors.top: hasteLbl.top
-    anchors.left: parent.horizontalCenter
-    text: cada s
-    color: #C8C8C8
-    font: verdana-11px-rounded
-    height: 14
-    width: 34
-    margin-left: 6
-
-  TextEdit
-    id: hasteCd
-    anchors.top: prev.top
-    anchors.left: prev.right
     anchors.right: parent.right
     margin-left: 4
 
   Label
-    id: locked
-    anchors.top: hasteSpell.bottom
+    id: hasteCdText
+    anchors.top: prev.bottom
     anchors.left: parent.left
     anchors.right: parent.right
     text-align: center
-    text: (Todo lo demas: solo VIP)
+    text: Cast cada 20 seg
+    color: #E8E8E8
     font: verdana-11px-rounded
-    color: #C83C3C
     height: 14
-    margin-top: 8
+    margin-top: 4
+
+  HorizontalScrollBar
+    id: hasteCd
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    minimum: 5
+    maximum: 60
+    step: 1
+    height: 16
+    margin-top: 2
 
   Button
     id: upgradeBtn
@@ -1703,65 +1734,116 @@ Panel
     background-color: #B28B00
     font: cipsoftFont
     height: 22
-    margin-top: 4
+    margin-top: 8
 ]])
 
-    -- defaults minimos
     local C = RQ.Config
-    C.ensure("free.healOn", true)
-    C.ensure("free.healSpell", "exura")
-    C.ensure("free.healHp", 80)
-    C.ensure("free.hasteOn", true)
-    C.ensure("free.hasteSpell", "utani hur")
-    C.ensure("free.hasteCd", 20)   -- segundos entre casts de haste
+    -- helper para llamar cast con manejo de errores
+    local function safeCast(words)
+        pcall(function() cast(words, 900) end)
+    end
+    -- detectar vocacion inicial
+    local vocInicial = "Knight"
+    pcall(function()
+        local v = player:getVocation()
+        if v then vocInicial = vocIdToName(v) end
+    end)
 
+    C.ensure("free.voc",         vocInicial)
+    C.ensure("free.healOn",      true)
+    C.ensure("free.healSpell",   (RQ.Catalog.healSpells[C.get("free.voc")] or {"exura"})[1])
+    C.ensure("free.healHp",      80)
+    C.ensure("free.hasteOn",     true)
+    C.ensure("free.hasteSpell",  (RQ.Catalog.hasteSpells[C.get("free.voc")] or {"utani hur"})[1])
+    C.ensure("free.hasteCd",     20)
+
+    -- rellenar combos ------------------------------------------------
+    local function fillCombo(combo, opts, current)
+        pcall(function() combo:clearOptions() end)
+        for _, o in ipairs(opts) do pcall(function() combo:addOption(o) end) end
+        if current then pcall(function() combo:setCurrentOption(current) end) end
+    end
+
+    fillCombo(ui.voc, RQ.Catalog.vocations, C.get("free.voc"))
+    local function refreshSpellCombos(voc)
+        fillCombo(ui.healSpell, RQ.Catalog.healSpells[voc] or {}, C.get("free.healSpell"))
+        fillCombo(ui.hasteSpell, RQ.Catalog.hasteSpells[voc] or {}, C.get("free.hasteSpell"))
+    end
+    refreshSpellCombos(C.get("free.voc"))
+
+    ui.voc.onOptionChange = function(w)
+        local o = w:getCurrentOption()
+        local t = o and o.text or nil
+        if not t then return end
+        C.set("free.voc", t)
+        refreshSpellCombos(t)
+    end
+
+    -- switches ------------------------------------------------
     ui.swHeal:setOn(C.get("free.healOn", true))
     ui.swHeal.onClick = function(w)
-        local n = not C.get("free.healOn", true); C.set("free.healOn", n); w:setOn(n)
+        local n = not C.get("free.healOn", true)
+        C.set("free.healOn", n); w:setOn(n)
     end
-    ui.healSpell:setText(C.get("free.healSpell", "exura"))
-    ui.healSpell.onTextChange = function(_, t) if t and t ~= "" then C.set("free.healSpell", t) end end
-    ui.healHp:setText(tostring(C.get("free.healHp", 80)))
-    ui.healHp.onTextChange = function(_, t) local n = tonumber(t); if n then C.set("free.healHp", n) end end
-
     ui.swHaste:setOn(C.get("free.hasteOn", true))
     ui.swHaste.onClick = function(w)
-        local n = not C.get("free.hasteOn", true); C.set("free.hasteOn", n); w:setOn(n)
+        local n = not C.get("free.hasteOn", true)
+        C.set("free.hasteOn", n); w:setOn(n)
     end
-    ui.hasteSpell:setText(C.get("free.hasteSpell", "utani hur"))
-    ui.hasteSpell.onTextChange = function(_, t) if t and t ~= "" then C.set("free.hasteSpell", t) end end
-    ui.hasteCd:setText(tostring(C.get("free.hasteCd", 20)))
-    ui.hasteCd.onTextChange = function(_, t) local n = tonumber(t); if n and n > 0 then C.set("free.hasteCd", n) end end
+
+    -- combos de spell ------------------------------------------------
+    ui.healSpell.onOptionChange = function(w)
+        local o = w:getCurrentOption(); local t = o and o.text or nil
+        if t then C.set("free.healSpell", t) end
+    end
+    ui.hasteSpell.onOptionChange = function(w)
+        local o = w:getCurrentOption(); local t = o and o.text or nil
+        if t then C.set("free.hasteSpell", t) end
+    end
+
+    -- sliders con label dinamico ------------------------------------------------
+    local function refreshHealHpText()
+        pcall(function() ui.healHpText:setText("Curar cuando HP<= "..C.get("free.healHp", 80).."%") end)
+    end
+    ui.healHp:setValue(C.get("free.healHp", 80))
+    refreshHealHpText()
+    ui.healHp.onValueChange = function(_, v) C.set("free.healHp", v); refreshHealHpText() end
+
+    local function refreshHasteCdText()
+        pcall(function() ui.hasteCdText:setText("Cast cada "..C.get("free.hasteCd", 20).." seg") end)
+    end
+    ui.hasteCd:setValue(C.get("free.hasteCd", 20))
+    refreshHasteCdText()
+    ui.hasteCd.onValueChange = function(_, v) C.set("free.hasteCd", v); refreshHasteCdText() end
+
+    -- guardar panel para hot-swap al VIP
+    RQ._freePanel = ui
 
     ui.upgradeBtn.onClick = function()
-        pcall(function() displayGeneralBox("Upgrade a VIP",
-            "Para activar VIP:\n\n"..
-            "1. Contacta al vendedor por la license key.\n"..
-            "2. Cierra Mayas.\n"..
-            "3. Ejecuta esto en la consola del cliente:\n"..
-            "     /lua storage.rscriptz_tier = nil\n"..
-            "4. Vuelve a abrir Mayas y elige VIP.",
-            {{text = "OK", callback = function() end}}) end)
+        _askForKey()
     end
 
-    -- macros FREE
+    -- macros ------------------------------------------------
     macro(200, "RScriptz FREE: Curacion", function()
+        if RQ.tier ~= "FREE" then return end
         if not C.get("free.healOn", true) then return end
         local hp = RQ.Game.hp()
         local threshold = tonumber(C.get("free.healHp", 80)) or 80
         if hp <= threshold then
-            cast(C.get("free.healSpell", "exura"), 900)
+            safeCast(C.get("free.healSpell", "exura"))
         end
     end)
 
+    -- haste: usar os.time() (segundos) en lugar de g_clock.millis()
+    -- porque g_clock no siempre esta expuesto al scope del macro en Mayas OTC
     local lastHaste = 0
     macro(500, "RScriptz FREE: Haste", function()
+        if RQ.tier ~= "FREE" then return end
         if not C.get("free.hasteOn", true) then return end
-        local cd = (tonumber(C.get("free.hasteCd", 20)) or 20) * 1000
-        local nowMs = g_clock.millis()
-        if nowMs - lastHaste >= cd then
-            cast(C.get("free.hasteSpell", "utani hur"), 900)
-            lastHaste = nowMs
+        local cd = tonumber(C.get("free.hasteCd", 20)) or 20
+        if os.time() - lastHaste >= cd then
+            safeCast(C.get("free.hasteSpell", "utani hur"))
+            lastHaste = os.time()
         end
     end)
 
