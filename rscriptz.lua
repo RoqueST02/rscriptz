@@ -39,6 +39,14 @@ local function _rqSay(msg)
     pcall(function() print("[RScriptz] "..tostring(msg)) end)
 end
 
+-- helpers defensivos para APIs de vBot que pueden no estar en el scope
+-- global del macro en Mayas OTC (getAttackingCreature, g_clock, etc)
+local function _rqGetTarget()
+    if not getAttackingCreature then return nil end
+    local ok, r = pcall(getAttackingCreature)
+    return ok and r or nil
+end
+
 local function _rqLoadOTUI(content)
     -- fallback 1: string directo
     if g_ui and g_ui.importStyleFromString then
@@ -1874,7 +1882,7 @@ Panel
     macro(500, "RScriptz FREE: Spell ataque", function()
         if RQ.tier ~= "FREE" then return end
         if not C.get("free.atkOn", false) then return end
-        if not getAttackingCreature() then return end
+        if not _rqGetTarget() then return end
         local cd = tonumber(C.get("free.atkCd", 2000)) or 2000
         if os.time() * 1000 - lastAtk >= cd then
             safeCast(C.get("free.atkSpell", "exori"))
@@ -1941,7 +1949,7 @@ rqSetupFullBot = function()
     -- INYECTAR PANEL --------------------------------------------------
     local ui = setupUI([==[
 Panel
-  height: 990
+  height: 1200
 
   Label
     id: brand
@@ -1953,7 +1961,7 @@ Panel
     font: verdana-11px-rounded
     color: #D4AF37
     background-color: #232323
-    height: 20
+    height: 22
 
   Label
     id: netLbl
@@ -1972,31 +1980,40 @@ Panel
     anchors.top: prev.bottom
     anchors.left: parent.left
     anchors.right: parent.right
-    margin-top: 4
-    height: 20
+    margin-top: 6
+    height: 22
     !text: tr('MASTER ON/OFF')
 
-  Label
-    id: vocLbl
+  Panel
+    id: vocRow
     anchors.top: prev.bottom
     anchors.left: parent.left
-    text: Vocacion:
-    color: #C8C8C8
-    font: verdana-11px-rounded
-    height: 14
-    margin-top: 6
-    width: 60
-
-  ComboBox
-    id: voc
-    anchors.top: prev.top
-    anchors.left: prev.right
     anchors.right: parent.right
-    margin-left: 4
+    margin-top: 8
+    height: 20
+
+    Label
+      id: vocLbl
+      anchors.left: parent.left
+      anchors.verticalCenter: parent.verticalCenter
+      text: Vocacion:
+      color: #C8C8C8
+      font: verdana-11px-rounded
+      height: 14
+      width: 60
+      margin-left: 4
+
+    ComboBox
+      id: voc
+      anchors.left: prev.right
+      anchors.right: parent.right
+      anchors.verticalCenter: parent.verticalCenter
+      margin-left: 6
+      margin-right: 4
 
   Label
     id: secHp
-    anchors.top: voc.bottom
+    anchors.top: vocRow.bottom
     anchors.left: parent.left
     anchors.right: parent.right
     text-align: center
@@ -2004,126 +2021,156 @@ Panel
     color: #D4AF37
     background-color: #1A1A1A
     font: verdana-11px-rounded
-    height: 16
-    margin-top: 8
+    height: 18
+    margin-top: 14
 
-  BotSwitch
-    id: hp1on
+  Panel
+    id: hp1row
     anchors.top: prev.bottom
     anchors.left: parent.left
-    margin-top: 4
-    height: 18
-    width: 50
-    !text: tr('1')
-
-  BotItem
-    id: hp1item
-    anchors.top: prev.top
-    anchors.left: prev.right
-    margin-left: 4
-
-  Label
-    id: hp1txt
-    anchors.top: prev.top
-    anchors.left: prev.right
     anchors.right: parent.right
-    text-align: right
-    text: HP<= 50%
-    color: #E8E8E8
-    font: verdana-11px-rounded
-    height: 14
-    margin-left: 6
-    margin-right: 2
+    margin-top: 6
+    height: 36
+    background-color: #1D1D1D
 
-  HorizontalScrollBar
-    id: hp1pct
-    anchors.top: hp1item.bottom
-    anchors.left: hp1item.right
-    anchors.right: parent.right
-    minimum: 5
-    maximum: 100
-    step: 5
-    height: 12
-    margin-top: 2
-    margin-left: 6
-  BotSwitch
-    id: hp2on
+    BotSwitch
+      id: hp1on
+      anchors.left: parent.left
+      anchors.verticalCenter: parent.verticalCenter
+      margin-left: 3
+      width: 32
+      height: 20
+      !text: tr('1')
+
+    BotItem
+      id: hp1item
+      anchors.left: prev.right
+      anchors.verticalCenter: parent.verticalCenter
+      margin-left: 6
+
+    Label
+      id: hp1txt
+      anchors.top: parent.top
+      anchors.left: prev.right
+      anchors.right: parent.right
+      text-align: center
+      text: HP<= 50%
+      color: #E8E8E8
+      font: verdana-11px-rounded
+      height: 14
+      margin-top: 4
+      margin-left: 10
+      margin-right: 6
+
+    HorizontalScrollBar
+      id: hp1pct
+      anchors.bottom: parent.bottom
+      anchors.left: hp1txt.left
+      anchors.right: parent.right
+      minimum: 5
+      maximum: 100
+      step: 5
+      height: 14
+      margin-bottom: 3
+      margin-right: 6
+  Panel
+    id: hp2row
     anchors.top: prev.bottom
     anchors.left: parent.left
-    margin-top: 4
-    height: 18
-    width: 50
-    !text: tr('2')
-
-  BotItem
-    id: hp2item
-    anchors.top: prev.top
-    anchors.left: prev.right
-    margin-left: 4
-
-  Label
-    id: hp2txt
-    anchors.top: prev.top
-    anchors.left: prev.right
     anchors.right: parent.right
-    text-align: right
-    text: HP<= 50%
-    color: #E8E8E8
-    font: verdana-11px-rounded
-    height: 14
-    margin-left: 6
-    margin-right: 2
+    margin-top: 6
+    height: 36
+    background-color: #1D1D1D
 
-  HorizontalScrollBar
-    id: hp2pct
-    anchors.top: hp2item.bottom
-    anchors.left: hp2item.right
-    anchors.right: parent.right
-    minimum: 5
-    maximum: 100
-    step: 5
-    height: 12
-    margin-top: 2
-    margin-left: 6
-  BotSwitch
-    id: hp3on
+    BotSwitch
+      id: hp2on
+      anchors.left: parent.left
+      anchors.verticalCenter: parent.verticalCenter
+      margin-left: 3
+      width: 32
+      height: 20
+      !text: tr('2')
+
+    BotItem
+      id: hp2item
+      anchors.left: prev.right
+      anchors.verticalCenter: parent.verticalCenter
+      margin-left: 6
+
+    Label
+      id: hp2txt
+      anchors.top: parent.top
+      anchors.left: prev.right
+      anchors.right: parent.right
+      text-align: center
+      text: HP<= 50%
+      color: #E8E8E8
+      font: verdana-11px-rounded
+      height: 14
+      margin-top: 4
+      margin-left: 10
+      margin-right: 6
+
+    HorizontalScrollBar
+      id: hp2pct
+      anchors.bottom: parent.bottom
+      anchors.left: hp2txt.left
+      anchors.right: parent.right
+      minimum: 5
+      maximum: 100
+      step: 5
+      height: 14
+      margin-bottom: 3
+      margin-right: 6
+  Panel
+    id: hp3row
     anchors.top: prev.bottom
     anchors.left: parent.left
-    margin-top: 4
-    height: 18
-    width: 50
-    !text: tr('3')
-
-  BotItem
-    id: hp3item
-    anchors.top: prev.top
-    anchors.left: prev.right
-    margin-left: 4
-
-  Label
-    id: hp3txt
-    anchors.top: prev.top
-    anchors.left: prev.right
     anchors.right: parent.right
-    text-align: right
-    text: HP<= 50%
-    color: #E8E8E8
-    font: verdana-11px-rounded
-    height: 14
-    margin-left: 6
-    margin-right: 2
+    margin-top: 6
+    height: 36
+    background-color: #1D1D1D
 
-  HorizontalScrollBar
-    id: hp3pct
-    anchors.top: hp3item.bottom
-    anchors.left: hp3item.right
-    anchors.right: parent.right
-    minimum: 5
-    maximum: 100
-    step: 5
-    height: 12
-    margin-top: 2
-    margin-left: 6
+    BotSwitch
+      id: hp3on
+      anchors.left: parent.left
+      anchors.verticalCenter: parent.verticalCenter
+      margin-left: 3
+      width: 32
+      height: 20
+      !text: tr('3')
+
+    BotItem
+      id: hp3item
+      anchors.left: prev.right
+      anchors.verticalCenter: parent.verticalCenter
+      margin-left: 6
+
+    Label
+      id: hp3txt
+      anchors.top: parent.top
+      anchors.left: prev.right
+      anchors.right: parent.right
+      text-align: center
+      text: HP<= 50%
+      color: #E8E8E8
+      font: verdana-11px-rounded
+      height: 14
+      margin-top: 4
+      margin-left: 10
+      margin-right: 6
+
+    HorizontalScrollBar
+      id: hp3pct
+      anchors.bottom: parent.bottom
+      anchors.left: hp3txt.left
+      anchors.right: parent.right
+      minimum: 5
+      maximum: 100
+      step: 5
+      height: 14
+      margin-bottom: 3
+      margin-right: 6
 
   Label
     id: secMp
@@ -2135,126 +2182,156 @@ Panel
     color: #D4AF37
     background-color: #1A1A1A
     font: verdana-11px-rounded
-    height: 16
-    margin-top: 10
+    height: 18
+    margin-top: 14
 
-  BotSwitch
-    id: mp1on
+  Panel
+    id: mp1row
     anchors.top: prev.bottom
     anchors.left: parent.left
-    margin-top: 4
-    height: 18
-    width: 50
-    !text: tr('1')
-
-  BotItem
-    id: mp1item
-    anchors.top: prev.top
-    anchors.left: prev.right
-    margin-left: 4
-
-  Label
-    id: mp1txt
-    anchors.top: prev.top
-    anchors.left: prev.right
     anchors.right: parent.right
-    text-align: right
-    text: MP<= 50%
-    color: #E8E8E8
-    font: verdana-11px-rounded
-    height: 14
-    margin-left: 6
-    margin-right: 2
+    margin-top: 6
+    height: 36
+    background-color: #1D1D1D
 
-  HorizontalScrollBar
-    id: mp1pct
-    anchors.top: mp1item.bottom
-    anchors.left: mp1item.right
-    anchors.right: parent.right
-    minimum: 5
-    maximum: 100
-    step: 5
-    height: 12
-    margin-top: 2
-    margin-left: 6
-  BotSwitch
-    id: mp2on
+    BotSwitch
+      id: mp1on
+      anchors.left: parent.left
+      anchors.verticalCenter: parent.verticalCenter
+      margin-left: 3
+      width: 32
+      height: 20
+      !text: tr('1')
+
+    BotItem
+      id: mp1item
+      anchors.left: prev.right
+      anchors.verticalCenter: parent.verticalCenter
+      margin-left: 6
+
+    Label
+      id: mp1txt
+      anchors.top: parent.top
+      anchors.left: prev.right
+      anchors.right: parent.right
+      text-align: center
+      text: MP<= 50%
+      color: #E8E8E8
+      font: verdana-11px-rounded
+      height: 14
+      margin-top: 4
+      margin-left: 10
+      margin-right: 6
+
+    HorizontalScrollBar
+      id: mp1pct
+      anchors.bottom: parent.bottom
+      anchors.left: mp1txt.left
+      anchors.right: parent.right
+      minimum: 5
+      maximum: 100
+      step: 5
+      height: 14
+      margin-bottom: 3
+      margin-right: 6
+  Panel
+    id: mp2row
     anchors.top: prev.bottom
     anchors.left: parent.left
-    margin-top: 4
-    height: 18
-    width: 50
-    !text: tr('2')
-
-  BotItem
-    id: mp2item
-    anchors.top: prev.top
-    anchors.left: prev.right
-    margin-left: 4
-
-  Label
-    id: mp2txt
-    anchors.top: prev.top
-    anchors.left: prev.right
     anchors.right: parent.right
-    text-align: right
-    text: MP<= 50%
-    color: #E8E8E8
-    font: verdana-11px-rounded
-    height: 14
-    margin-left: 6
-    margin-right: 2
+    margin-top: 6
+    height: 36
+    background-color: #1D1D1D
 
-  HorizontalScrollBar
-    id: mp2pct
-    anchors.top: mp2item.bottom
-    anchors.left: mp2item.right
-    anchors.right: parent.right
-    minimum: 5
-    maximum: 100
-    step: 5
-    height: 12
-    margin-top: 2
-    margin-left: 6
-  BotSwitch
-    id: mp3on
+    BotSwitch
+      id: mp2on
+      anchors.left: parent.left
+      anchors.verticalCenter: parent.verticalCenter
+      margin-left: 3
+      width: 32
+      height: 20
+      !text: tr('2')
+
+    BotItem
+      id: mp2item
+      anchors.left: prev.right
+      anchors.verticalCenter: parent.verticalCenter
+      margin-left: 6
+
+    Label
+      id: mp2txt
+      anchors.top: parent.top
+      anchors.left: prev.right
+      anchors.right: parent.right
+      text-align: center
+      text: MP<= 50%
+      color: #E8E8E8
+      font: verdana-11px-rounded
+      height: 14
+      margin-top: 4
+      margin-left: 10
+      margin-right: 6
+
+    HorizontalScrollBar
+      id: mp2pct
+      anchors.bottom: parent.bottom
+      anchors.left: mp2txt.left
+      anchors.right: parent.right
+      minimum: 5
+      maximum: 100
+      step: 5
+      height: 14
+      margin-bottom: 3
+      margin-right: 6
+  Panel
+    id: mp3row
     anchors.top: prev.bottom
     anchors.left: parent.left
-    margin-top: 4
-    height: 18
-    width: 50
-    !text: tr('3')
-
-  BotItem
-    id: mp3item
-    anchors.top: prev.top
-    anchors.left: prev.right
-    margin-left: 4
-
-  Label
-    id: mp3txt
-    anchors.top: prev.top
-    anchors.left: prev.right
     anchors.right: parent.right
-    text-align: right
-    text: MP<= 50%
-    color: #E8E8E8
-    font: verdana-11px-rounded
-    height: 14
-    margin-left: 6
-    margin-right: 2
+    margin-top: 6
+    height: 36
+    background-color: #1D1D1D
 
-  HorizontalScrollBar
-    id: mp3pct
-    anchors.top: mp3item.bottom
-    anchors.left: mp3item.right
-    anchors.right: parent.right
-    minimum: 5
-    maximum: 100
-    step: 5
-    height: 12
-    margin-top: 2
-    margin-left: 6
+    BotSwitch
+      id: mp3on
+      anchors.left: parent.left
+      anchors.verticalCenter: parent.verticalCenter
+      margin-left: 3
+      width: 32
+      height: 20
+      !text: tr('3')
+
+    BotItem
+      id: mp3item
+      anchors.left: prev.right
+      anchors.verticalCenter: parent.verticalCenter
+      margin-left: 6
+
+    Label
+      id: mp3txt
+      anchors.top: parent.top
+      anchors.left: prev.right
+      anchors.right: parent.right
+      text-align: center
+      text: MP<= 50%
+      color: #E8E8E8
+      font: verdana-11px-rounded
+      height: 14
+      margin-top: 4
+      margin-left: 10
+      margin-right: 6
+
+    HorizontalScrollBar
+      id: mp3pct
+      anchors.bottom: parent.bottom
+      anchors.left: mp3txt.left
+      anchors.right: parent.right
+      minimum: 5
+      maximum: 100
+      step: 5
+      height: 14
+      margin-bottom: 3
+      margin-right: 6
 
   Label
     id: secAtk
@@ -2266,126 +2343,162 @@ Panel
     color: #D4AF37
     background-color: #1A1A1A
     font: verdana-11px-rounded
-    height: 16
-    margin-top: 10
+    height: 18
+    margin-top: 14
 
-  BotSwitch
-    id: atk1on
+  Panel
+    id: atk1row
     anchors.top: prev.bottom
     anchors.left: parent.left
-    margin-top: 4
-    height: 18
-    width: 30
-    !text: tr('1')
-
-  ComboBox
-    id: atk1spell
-    anchors.top: prev.top
-    anchors.left: prev.right
-    anchors.right: parent.horizontalCenter
-    margin-left: 4
-
-  Label
-    id: atk1txt
-    anchors.top: prev.top
-    anchors.left: parent.horizontalCenter
     anchors.right: parent.right
-    text-align: right
-    text: cada 2000 ms
-    color: #E8E8E8
-    font: verdana-11px-rounded
-    height: 14
-    margin-left: 6
-    margin-right: 2
+    margin-top: 6
+    height: 40
+    background-color: #1D1D1D
 
-  HorizontalScrollBar
-    id: atk1cd
-    anchors.top: atk1spell.bottom
-    anchors.left: atk1spell.left
-    anchors.right: parent.right
-    minimum: 500
-    maximum: 8000
-    step: 100
-    height: 12
-    margin-top: 2
-  BotSwitch
-    id: atk2on
+    BotSwitch
+      id: atk1on
+      anchors.left: parent.left
+      anchors.verticalCenter: parent.verticalCenter
+      margin-left: 3
+      width: 32
+      height: 20
+      !text: tr('1')
+
+    ComboBox
+      id: atk1spell
+      anchors.top: parent.top
+      anchors.left: prev.right
+      margin-left: 6
+      margin-top: 4
+      width: 120
+
+    Label
+      id: atk1txt
+      anchors.top: parent.top
+      anchors.left: prev.right
+      anchors.right: parent.right
+      text-align: center
+      text: cada 2000 ms
+      color: #E8E8E8
+      font: verdana-11px-rounded
+      height: 14
+      margin-top: 6
+      margin-left: 8
+      margin-right: 6
+
+    HorizontalScrollBar
+      id: atk1cd
+      anchors.bottom: parent.bottom
+      anchors.left: atk1spell.left
+      anchors.right: parent.right
+      minimum: 500
+      maximum: 8000
+      step: 100
+      height: 14
+      margin-bottom: 4
+      margin-right: 6
+  Panel
+    id: atk2row
     anchors.top: prev.bottom
     anchors.left: parent.left
-    margin-top: 4
-    height: 18
-    width: 30
-    !text: tr('2')
-
-  ComboBox
-    id: atk2spell
-    anchors.top: prev.top
-    anchors.left: prev.right
-    anchors.right: parent.horizontalCenter
-    margin-left: 4
-
-  Label
-    id: atk2txt
-    anchors.top: prev.top
-    anchors.left: parent.horizontalCenter
     anchors.right: parent.right
-    text-align: right
-    text: cada 2000 ms
-    color: #E8E8E8
-    font: verdana-11px-rounded
-    height: 14
-    margin-left: 6
-    margin-right: 2
+    margin-top: 6
+    height: 40
+    background-color: #1D1D1D
 
-  HorizontalScrollBar
-    id: atk2cd
-    anchors.top: atk2spell.bottom
-    anchors.left: atk2spell.left
-    anchors.right: parent.right
-    minimum: 500
-    maximum: 8000
-    step: 100
-    height: 12
-    margin-top: 2
-  BotSwitch
-    id: atk3on
+    BotSwitch
+      id: atk2on
+      anchors.left: parent.left
+      anchors.verticalCenter: parent.verticalCenter
+      margin-left: 3
+      width: 32
+      height: 20
+      !text: tr('2')
+
+    ComboBox
+      id: atk2spell
+      anchors.top: parent.top
+      anchors.left: prev.right
+      margin-left: 6
+      margin-top: 4
+      width: 120
+
+    Label
+      id: atk2txt
+      anchors.top: parent.top
+      anchors.left: prev.right
+      anchors.right: parent.right
+      text-align: center
+      text: cada 2000 ms
+      color: #E8E8E8
+      font: verdana-11px-rounded
+      height: 14
+      margin-top: 6
+      margin-left: 8
+      margin-right: 6
+
+    HorizontalScrollBar
+      id: atk2cd
+      anchors.bottom: parent.bottom
+      anchors.left: atk2spell.left
+      anchors.right: parent.right
+      minimum: 500
+      maximum: 8000
+      step: 100
+      height: 14
+      margin-bottom: 4
+      margin-right: 6
+  Panel
+    id: atk3row
     anchors.top: prev.bottom
     anchors.left: parent.left
-    margin-top: 4
-    height: 18
-    width: 30
-    !text: tr('3')
-
-  ComboBox
-    id: atk3spell
-    anchors.top: prev.top
-    anchors.left: prev.right
-    anchors.right: parent.horizontalCenter
-    margin-left: 4
-
-  Label
-    id: atk3txt
-    anchors.top: prev.top
-    anchors.left: parent.horizontalCenter
     anchors.right: parent.right
-    text-align: right
-    text: cada 2000 ms
-    color: #E8E8E8
-    font: verdana-11px-rounded
-    height: 14
-    margin-left: 6
-    margin-right: 2
+    margin-top: 6
+    height: 40
+    background-color: #1D1D1D
 
-  HorizontalScrollBar
-    id: atk3cd
-    anchors.top: atk3spell.bottom
-    anchors.left: atk3spell.left
-    anchors.right: parent.right
-    minimum: 500
-    maximum: 8000
-    step: 100
-    height: 12
-    margin-top: 2
+    BotSwitch
+      id: atk3on
+      anchors.left: parent.left
+      anchors.verticalCenter: parent.verticalCenter
+      margin-left: 3
+      width: 32
+      height: 20
+      !text: tr('3')
+
+    ComboBox
+      id: atk3spell
+      anchors.top: parent.top
+      anchors.left: prev.right
+      margin-left: 6
+      margin-top: 4
+      width: 120
+
+    Label
+      id: atk3txt
+      anchors.top: parent.top
+      anchors.left: prev.right
+      anchors.right: parent.right
+      text-align: center
+      text: cada 2000 ms
+      color: #E8E8E8
+      font: verdana-11px-rounded
+      height: 14
+      margin-top: 6
+      margin-left: 8
+      margin-right: 6
+
+    HorizontalScrollBar
+      id: atk3cd
+      anchors.bottom: parent.bottom
+      anchors.left: atk3spell.left
+      anchors.right: parent.right
+      minimum: 500
+      maximum: 8000
+      step: 100
+      height: 14
+      margin-bottom: 4
+      margin-right: 6
 
   Label
     id: secEx
@@ -2397,126 +2510,162 @@ Panel
     color: #D4AF37
     background-color: #1A1A1A
     font: verdana-11px-rounded
-    height: 16
-    margin-top: 10
+    height: 18
+    margin-top: 14
 
-  BotSwitch
-    id: ex1on
+  Panel
+    id: ex1row
     anchors.top: prev.bottom
     anchors.left: parent.left
-    margin-top: 4
-    height: 18
-    width: 30
-    !text: tr('1')
-
-  TextEdit
-    id: ex1spell
-    anchors.top: prev.top
-    anchors.left: prev.right
-    anchors.right: parent.horizontalCenter
-    margin-left: 4
-
-  Label
-    id: ex1txt
-    anchors.top: prev.top
-    anchors.left: parent.horizontalCenter
     anchors.right: parent.right
-    text-align: right
-    text: cada 5 seg
-    color: #E8E8E8
-    font: verdana-11px-rounded
-    height: 14
-    margin-left: 6
-    margin-right: 2
+    margin-top: 6
+    height: 40
+    background-color: #1D1D1D
 
-  HorizontalScrollBar
-    id: ex1cd
-    anchors.top: ex1spell.bottom
-    anchors.left: ex1spell.left
-    anchors.right: parent.right
-    minimum: 1
-    maximum: 120
-    step: 1
-    height: 12
-    margin-top: 2
-  BotSwitch
-    id: ex2on
+    BotSwitch
+      id: ex1on
+      anchors.left: parent.left
+      anchors.verticalCenter: parent.verticalCenter
+      margin-left: 3
+      width: 32
+      height: 20
+      !text: tr('1')
+
+    TextEdit
+      id: ex1spell
+      anchors.top: parent.top
+      anchors.left: prev.right
+      margin-left: 6
+      margin-top: 4
+      width: 120
+
+    Label
+      id: ex1txt
+      anchors.top: parent.top
+      anchors.left: prev.right
+      anchors.right: parent.right
+      text-align: center
+      text: cada 5 seg
+      color: #E8E8E8
+      font: verdana-11px-rounded
+      height: 14
+      margin-top: 6
+      margin-left: 8
+      margin-right: 6
+
+    HorizontalScrollBar
+      id: ex1cd
+      anchors.bottom: parent.bottom
+      anchors.left: ex1spell.left
+      anchors.right: parent.right
+      minimum: 1
+      maximum: 120
+      step: 1
+      height: 14
+      margin-bottom: 4
+      margin-right: 6
+  Panel
+    id: ex2row
     anchors.top: prev.bottom
     anchors.left: parent.left
-    margin-top: 4
-    height: 18
-    width: 30
-    !text: tr('2')
-
-  TextEdit
-    id: ex2spell
-    anchors.top: prev.top
-    anchors.left: prev.right
-    anchors.right: parent.horizontalCenter
-    margin-left: 4
-
-  Label
-    id: ex2txt
-    anchors.top: prev.top
-    anchors.left: parent.horizontalCenter
     anchors.right: parent.right
-    text-align: right
-    text: cada 5 seg
-    color: #E8E8E8
-    font: verdana-11px-rounded
-    height: 14
-    margin-left: 6
-    margin-right: 2
+    margin-top: 6
+    height: 40
+    background-color: #1D1D1D
 
-  HorizontalScrollBar
-    id: ex2cd
-    anchors.top: ex2spell.bottom
-    anchors.left: ex2spell.left
-    anchors.right: parent.right
-    minimum: 1
-    maximum: 120
-    step: 1
-    height: 12
-    margin-top: 2
-  BotSwitch
-    id: ex3on
+    BotSwitch
+      id: ex2on
+      anchors.left: parent.left
+      anchors.verticalCenter: parent.verticalCenter
+      margin-left: 3
+      width: 32
+      height: 20
+      !text: tr('2')
+
+    TextEdit
+      id: ex2spell
+      anchors.top: parent.top
+      anchors.left: prev.right
+      margin-left: 6
+      margin-top: 4
+      width: 120
+
+    Label
+      id: ex2txt
+      anchors.top: parent.top
+      anchors.left: prev.right
+      anchors.right: parent.right
+      text-align: center
+      text: cada 5 seg
+      color: #E8E8E8
+      font: verdana-11px-rounded
+      height: 14
+      margin-top: 6
+      margin-left: 8
+      margin-right: 6
+
+    HorizontalScrollBar
+      id: ex2cd
+      anchors.bottom: parent.bottom
+      anchors.left: ex2spell.left
+      anchors.right: parent.right
+      minimum: 1
+      maximum: 120
+      step: 1
+      height: 14
+      margin-bottom: 4
+      margin-right: 6
+  Panel
+    id: ex3row
     anchors.top: prev.bottom
     anchors.left: parent.left
-    margin-top: 4
-    height: 18
-    width: 30
-    !text: tr('3')
-
-  TextEdit
-    id: ex3spell
-    anchors.top: prev.top
-    anchors.left: prev.right
-    anchors.right: parent.horizontalCenter
-    margin-left: 4
-
-  Label
-    id: ex3txt
-    anchors.top: prev.top
-    anchors.left: parent.horizontalCenter
     anchors.right: parent.right
-    text-align: right
-    text: cada 5 seg
-    color: #E8E8E8
-    font: verdana-11px-rounded
-    height: 14
-    margin-left: 6
-    margin-right: 2
+    margin-top: 6
+    height: 40
+    background-color: #1D1D1D
 
-  HorizontalScrollBar
-    id: ex3cd
-    anchors.top: ex3spell.bottom
-    anchors.left: ex3spell.left
-    anchors.right: parent.right
-    minimum: 1
-    maximum: 120
-    step: 1
-    height: 12
-    margin-top: 2
+    BotSwitch
+      id: ex3on
+      anchors.left: parent.left
+      anchors.verticalCenter: parent.verticalCenter
+      margin-left: 3
+      width: 32
+      height: 20
+      !text: tr('3')
+
+    TextEdit
+      id: ex3spell
+      anchors.top: parent.top
+      anchors.left: prev.right
+      margin-left: 6
+      margin-top: 4
+      width: 120
+
+    Label
+      id: ex3txt
+      anchors.top: parent.top
+      anchors.left: prev.right
+      anchors.right: parent.right
+      text-align: center
+      text: cada 5 seg
+      color: #E8E8E8
+      font: verdana-11px-rounded
+      height: 14
+      margin-top: 6
+      margin-left: 8
+      margin-right: 6
+
+    HorizontalScrollBar
+      id: ex3cd
+      anchors.bottom: parent.bottom
+      anchors.left: ex3spell.left
+      anchors.right: parent.right
+      minimum: 1
+      maximum: 120
+      step: 1
+      height: 14
+      margin-bottom: 4
+      margin-right: 6
 
   Label
     id: secTgt
@@ -2528,16 +2677,16 @@ Panel
     color: #D4AF37
     background-color: #1A1A1A
     font: verdana-11px-rounded
-    height: 16
-    margin-top: 10
+    height: 18
+    margin-top: 14
 
   BotSwitch
     id: tgtOn
     anchors.top: prev.bottom
     anchors.left: parent.left
     anchors.right: parent.right
-    margin-top: 4
-    height: 18
+    margin-top: 6
+    height: 20
     !text: tr('Atacar monstruo mas cercano')
 
   Label
@@ -2550,7 +2699,7 @@ Panel
     color: #E8E8E8
     font: verdana-11px-rounded
     height: 14
-    margin-top: 4
+    margin-top: 6
 
   HorizontalScrollBar
     id: tgtRange
@@ -2561,6 +2710,7 @@ Panel
     maximum: 10
     step: 1
     height: 14
+    margin-top: 2
 
   Label
     id: secFol
@@ -2572,35 +2722,44 @@ Panel
     color: #D4AF37
     background-color: #1A1A1A
     font: verdana-11px-rounded
-    height: 16
-    margin-top: 10
+    height: 18
+    margin-top: 14
 
   BotSwitch
     id: folOn
     anchors.top: prev.bottom
     anchors.left: parent.left
     anchors.right: parent.right
-    margin-top: 4
-    height: 18
+    margin-top: 6
+    height: 20
     !text: tr('Seguir a jugador (findPath)')
 
-  Label
-    id: folLdrLbl
+  Panel
+    id: folLdrRow
     anchors.top: prev.bottom
     anchors.left: parent.left
-    text: Leader:
-    color: #C8C8C8
-    font: verdana-11px-rounded
-    height: 14
-    margin-top: 4
-    width: 50
-
-  TextEdit
-    id: folLeader
-    anchors.top: prev.top
-    anchors.left: prev.right
     anchors.right: parent.right
-    margin-left: 4
+    margin-top: 6
+    height: 20
+
+    Label
+      id: folLdrLbl
+      anchors.left: parent.left
+      anchors.verticalCenter: parent.verticalCenter
+      text: Leader:
+      color: #C8C8C8
+      font: verdana-11px-rounded
+      height: 14
+      width: 50
+      margin-left: 4
+
+    TextEdit
+      id: folLeader
+      anchors.left: prev.right
+      anchors.right: parent.right
+      anchors.verticalCenter: parent.verticalCenter
+      margin-left: 6
+      margin-right: 4
 
   Label
     id: folDistText
@@ -2612,7 +2771,7 @@ Panel
     color: #E8E8E8
     font: verdana-11px-rounded
     height: 14
-    margin-top: 4
+    margin-top: 6
 
   HorizontalScrollBar
     id: folDist
@@ -2623,6 +2782,7 @@ Panel
     maximum: 8
     step: 1
     height: 14
+    margin-top: 2
 
   Label
     id: secMch
@@ -2634,43 +2794,52 @@ Panel
     color: #D4AF37
     background-color: #1A1A1A
     font: verdana-11px-rounded
-    height: 16
-    margin-top: 10
+    height: 18
+    margin-top: 14
 
   BotSwitch
     id: mchIsLeader
     anchors.top: prev.bottom
     anchors.left: parent.left
     anchors.right: parent.right
-    margin-top: 4
-    height: 18
+    margin-top: 6
+    height: 20
     !text: tr('Yo soy el LEADER')
 
-  Label
-    id: mchLdrLbl
+  Panel
+    id: mchLdrRow
     anchors.top: prev.bottom
     anchors.left: parent.left
-    text: Leader:
-    color: #C8C8C8
-    font: verdana-11px-rounded
-    height: 14
-    margin-top: 4
-    width: 50
-
-  TextEdit
-    id: mchLeader
-    anchors.top: prev.top
-    anchors.left: prev.right
     anchors.right: parent.right
-    margin-left: 4
+    margin-top: 6
+    height: 20
+
+    Label
+      id: mchLdrLbl
+      anchors.left: parent.left
+      anchors.verticalCenter: parent.verticalCenter
+      text: Leader:
+      color: #C8C8C8
+      font: verdana-11px-rounded
+      height: 14
+      width: 50
+      margin-left: 4
+
+    TextEdit
+      id: mchLeader
+      anchors.left: prev.right
+      anchors.right: parent.right
+      anchors.verticalCenter: parent.verticalCenter
+      margin-left: 6
+      margin-right: 4
 
   BotSwitch
     id: mchFollow
     anchors.top: prev.bottom
     anchors.left: parent.left
     anchors.right: parent.right
-    margin-top: 4
-    height: 18
+    margin-top: 6
+    height: 20
     !text: tr('MCs siguen mismo piso')
 
   BotSwitch
@@ -2678,8 +2847,8 @@ Panel
     anchors.top: prev.bottom
     anchors.left: parent.left
     anchors.right: parent.right
-    margin-top: 2
-    height: 18
+    margin-top: 4
+    height: 20
     !text: tr('MCs cruzan piso (escaleras)')
 
   Label
@@ -2692,16 +2861,16 @@ Panel
     color: #D4AF37
     background-color: #1A1A1A
     font: verdana-11px-rounded
-    height: 16
-    margin-top: 10
+    height: 18
+    margin-top: 14
 
   BotSwitch
     id: pkOn
     anchors.top: prev.bottom
     anchors.left: parent.left
     anchors.right: parent.right
-    margin-top: 4
-    height: 18
+    margin-top: 6
+    height: 20
     !text: tr('Alertar players desconocidos')
 
   BotSwitch
@@ -2709,8 +2878,8 @@ Panel
     anchors.top: prev.bottom
     anchors.left: parent.left
     anchors.right: parent.right
-    margin-top: 2
-    height: 18
+    margin-top: 4
+    height: 20
     !text: tr('Avisar a MCs por el hub')
 
   Label
@@ -2723,26 +2892,35 @@ Panel
     color: #D4AF37
     background-color: #1A1A1A
     font: verdana-11px-rounded
-    height: 16
-    margin-top: 10
+    height: 18
+    margin-top: 14
 
-  Label
-    id: hubCanalLbl
+  Panel
+    id: hubCanalRow
     anchors.top: prev.bottom
     anchors.left: parent.left
-    text: Canal:
-    color: #C8C8C8
-    font: verdana-11px-rounded
-    height: 14
-    margin-top: 4
-    width: 50
-
-  TextEdit
-    id: hubCanal
-    anchors.top: prev.top
-    anchors.left: prev.right
     anchors.right: parent.right
-    margin-left: 4
+    margin-top: 6
+    height: 20
+
+    Label
+      id: hubCanalLbl
+      anchors.left: parent.left
+      anchors.verticalCenter: parent.verticalCenter
+      text: Canal:
+      color: #C8C8C8
+      font: verdana-11px-rounded
+      height: 14
+      width: 50
+      margin-left: 4
+
+    TextEdit
+      id: hubCanal
+      anchors.left: prev.right
+      anchors.right: parent.right
+      anchors.verticalCenter: parent.verticalCenter
+      margin-left: 6
+      margin-right: 4
 
   Button
     id: hubReconnect
@@ -2753,8 +2931,8 @@ Panel
     font: cipsoftFont
     color: #FFFFFF
     background-color: #326432
-    height: 20
-    margin-top: 4
+    height: 22
+    margin-top: 8
 ]==])
 
     RQ._vipPanel = ui
@@ -3053,6 +3231,7 @@ Panel
     pcall(function() broadcastMessage("RScriptz v"..RQ.version.." VIP cargado - "..RQ.Game.name()) end)
     RQ.Logger.info("RScriptz", "listo v"..RQ.version.." modo VIP")
 end
+
 
 
 -- ==========================================================
