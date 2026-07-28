@@ -989,7 +989,7 @@ Panel
     anchors.right: parent.right
     text-align: center
     text: Net: ...
-    color: #C83C3C
+    color: #2A2A2A
     background-color: #1A1A1A
     font: verdana-11px-rounded
     height: 16
@@ -1014,8 +1014,8 @@ Panel
     text-align: left
     text-offset: 12 0
     font: verdana-11px-rounded
-    color: #FFFFFF
-    background-color: #326432
+    color: #D4AF37
+    background-color: #2A2A2A
     focusable: true
 
   Label
@@ -1029,8 +1029,8 @@ Panel
     text-align: left
     text-offset: 12 0
     font: verdana-11px-rounded
-    color: #FFFFFF
-    background-color: #B23A48
+    color: #D4AF37
+    background-color: #2A2A2A
     focusable: true
 
   Label
@@ -1044,8 +1044,8 @@ Panel
     text-align: left
     text-offset: 12 0
     font: verdana-11px-rounded
-    color: #FFFFFF
-    background-color: #2E5AA0
+    color: #D4AF37
+    background-color: #2A2A2A
     focusable: true
 
   Label
@@ -1059,8 +1059,8 @@ Panel
     text-align: left
     text-offset: 12 0
     font: verdana-11px-rounded
-    color: #FFFFFF
-    background-color: #6E3AB2
+    color: #D4AF37
+    background-color: #2A2A2A
     focusable: true
 
   Label
@@ -1074,8 +1074,8 @@ Panel
     text-align: left
     text-offset: 12 0
     font: verdana-11px-rounded
-    color: #FFFFFF
-    background-color: #B2743A
+    color: #D4AF37
+    background-color: #2A2A2A
     focusable: true
 
   Label
@@ -1089,8 +1089,8 @@ Panel
     text-align: left
     text-offset: 12 0
     font: verdana-11px-rounded
-    color: #FFFFFF
-    background-color: #B2A03A
+    color: #D4AF37
+    background-color: #2A2A2A
     focusable: true
 
   Label
@@ -1104,8 +1104,8 @@ Panel
     text-align: left
     text-offset: 12 0
     font: verdana-11px-rounded
-    color: #FFFFFF
-    background-color: #3AB2A0
+    color: #D4AF37
+    background-color: #2A2A2A
     focusable: true
 
   Label
@@ -1119,8 +1119,8 @@ Panel
     text-align: left
     text-offset: 12 0
     font: verdana-11px-rounded
-    color: #FFFFFF
-    background-color: #C83C3C
+    color: #D4AF37
+    background-color: #2A2A2A
     focusable: true
 
   Label
@@ -1134,8 +1134,8 @@ Panel
     text-align: left
     text-offset: 12 0
     font: verdana-11px-rounded
-    color: #FFFFFF
-    background-color: #4A4A8C
+    color: #D4AF37
+    background-color: #2A2A2A
     focusable: true
 
   Label
@@ -1149,8 +1149,8 @@ Panel
     text-align: left
     text-offset: 12 0
     font: verdana-11px-rounded
-    color: #FFFFFF
-    background-color: #5C4A2C
+    color: #D4AF37
+    background-color: #2A2A2A
     focusable: true
 ]==])
     local pCura = setupUI([==[
@@ -1228,17 +1228,17 @@ Panel
 
   BotItem
     id: hp1item
-    anchors.top: prev.top
-    anchors.left: prev.right
+    anchors.top: hp1on.top
+    anchors.left: hp1mode.right
     margin-left: 8
 
   TextEdit
     id: hp1spell
     anchors.top: hp1on.top
     anchors.bottom: hp1on.bottom
-    anchors.left: hp1item.right
+    anchors.left: hp1mode.right
     anchors.right: parent.right
-    margin-left: 6
+    margin-left: 34
     margin-right: 4
 
   Label
@@ -1298,17 +1298,17 @@ Panel
 
   BotItem
     id: hp2item
-    anchors.top: prev.top
-    anchors.left: prev.right
+    anchors.top: hp2on.top
+    anchors.left: hp2mode.right
     margin-left: 8
 
   TextEdit
     id: hp2spell
     anchors.top: hp2on.top
     anchors.bottom: hp2on.bottom
-    anchors.left: hp2item.right
+    anchors.left: hp2mode.right
     anchors.right: parent.right
-    margin-left: 6
+    margin-left: 34
     margin-right: 4
 
   Label
@@ -1368,17 +1368,17 @@ Panel
 
   BotItem
     id: hp3item
-    anchors.top: prev.top
-    anchors.left: prev.right
+    anchors.top: hp3on.top
+    anchors.left: hp3mode.right
     margin-left: 8
 
   TextEdit
     id: hp3spell
     anchors.top: hp3on.top
     anchors.bottom: hp3on.bottom
-    anchors.left: hp3item.right
+    anchors.left: hp3mode.right
     anchors.right: parent.right
-    margin-left: 6
+    margin-left: 34
     margin-right: 4
 
   Label
@@ -1452,17 +1452,17 @@ Panel
 
   BotItem
     id: mp1item
-    anchors.top: prev.top
-    anchors.left: prev.right
+    anchors.top: mp1on.top
+    anchors.left: mp1mode.right
     margin-left: 8
 
   TextEdit
     id: mp1spell
     anchors.top: mp1on.top
     anchors.bottom: mp1on.bottom
-    anchors.left: mp1item.right
+    anchors.left: mp1mode.right
     anchors.right: parent.right
-    margin-left: 6
+    margin-left: 34
     margin-right: 4
 
   Label
@@ -1522,17 +1522,17 @@ Panel
 
   BotItem
     id: mp2item
-    anchors.top: prev.top
-    anchors.left: prev.right
+    anchors.top: mp2on.top
+    anchors.left: mp2mode.right
     margin-left: 8
 
   TextEdit
     id: mp2spell
     anchors.top: mp2on.top
     anchors.bottom: mp2on.bottom
-    anchors.left: mp2item.right
+    anchors.left: mp2mode.right
     anchors.right: parent.right
-    margin-left: 6
+    margin-left: 34
     margin-right: 4
 
   Label
@@ -1592,17 +1592,17 @@ Panel
 
   BotItem
     id: mp3item
-    anchors.top: prev.top
-    anchors.left: prev.right
+    anchors.top: mp3on.top
+    anchors.left: mp3mode.right
     margin-left: 8
 
   TextEdit
     id: mp3spell
     anchors.top: mp3on.top
     anchors.bottom: mp3on.bottom
-    anchors.left: mp3item.right
+    anchors.left: mp3mode.right
     anchors.right: parent.right
-    margin-left: 6
+    margin-left: 34
     margin-right: 4
 
   Label
@@ -2771,8 +2771,8 @@ Panel
     text-align: left
     text-offset: 12 0
     font: verdana-11px-rounded
-    color: #FFFFFF
-    background-color: #326432
+    color: #D4AF37
+    background-color: #1F3A1F
     focusable: true
 
   Label
@@ -2786,8 +2786,8 @@ Panel
     text-align: left
     text-offset: 12 0
     font: verdana-11px-rounded
-    color: #FFFFFF
-    background-color: #2E5AA0
+    color: #D4AF37
+    background-color: #1F2A3A
     focusable: true
 
   Label
@@ -2801,8 +2801,8 @@ Panel
     text-align: left
     text-offset: 12 0
     font: verdana-11px-rounded
-    color: #FFFFFF
-    background-color: #B2743A
+    color: #D4AF37
+    background-color: #3A2A1F
     focusable: true
 
   Label
@@ -2816,8 +2816,8 @@ Panel
     text-align: left
     text-offset: 12 0
     font: verdana-11px-rounded
-    color: #FFFFFF
-    background-color: #6E3AB2
+    color: #D4AF37
+    background-color: #2A1F3A
     focusable: true
 
   Label
@@ -2945,7 +2945,7 @@ Panel
     text: Reconectar al hub
     font: cipsoftFont
     color: #FFFFFF
-    background-color: #326432
+    background-color: #2A2A2A
     height: 22
     margin-top: 8
 
@@ -2956,7 +2956,7 @@ Panel
     anchors.right: parent.right
     text-align: center
     text: (estado)
-    color: #C83C3C
+    color: #2A2A2A
     font: verdana-11px-rounded
     height: 14
     margin-top: 6
@@ -3259,7 +3259,7 @@ Panel
                 pMenu.netLbl:setColor("#32DC64")
             else
                 pMenu.netLbl:setText("Net OFF (¿RQ_Hub.py corriendo?)")
-                pMenu.netLbl:setColor("#C83C3C")
+                pMenu.netLbl:setColor("#2A2A2A")
             end
         end)
     end)
@@ -3315,8 +3315,8 @@ Panel
             local isPot = C.get("vip."..pfx..i..".mode", true) and true or false
             pcall(function() w.mode:setText(isPot and "POT" or "SPELL") end)
             pcall(function() w.mode:setOn(isPot) end)
-            pcall(function() w.item:setVisible(isPot) end)
-            pcall(function() w.spell:setVisible(not isPot) end)
+            -- Ambos siempre visibles. El toggle solo cambia lo que USA el macro
+            -- (POT = w.item, SPELL = w.spell). Evita bugs de layout en MEHAH.
         end
         refreshMode()
         pcall(function() w.mode.onClick = function()
@@ -3344,8 +3344,7 @@ Panel
         local isSpell = C.get("vip.utamo.mode", true) and true or false
         pcall(function() pCura.utamoMode:setText(isSpell and "SPELL" or "RING") end)
         pcall(function() pCura.utamoMode:setOn(isSpell) end)
-        pcall(function() pCura.utamoSpell:setVisible(isSpell) end)
-        pcall(function() pCura.utamoRing:setVisible(not isSpell) end)
+        -- Ambos siempre visibles, el toggle solo cambia lo que USA el macro
     end
     refreshUtamoMode()
     pcall(function() pCura.utamoMode.onClick = function()
@@ -3507,7 +3506,7 @@ Panel
                 pHub.status:setColor("#32DC64")
             else
                 pHub.status:setText("Net OFF -- ¿RQ_Hub.py corriendo?")
-                pHub.status:setColor("#C83C3C")
+                pHub.status:setColor("#2A2A2A")
             end
         end)
     end)
