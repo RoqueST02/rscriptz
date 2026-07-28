@@ -881,8 +881,38 @@ rqSetupFullBot = function()
     C.ensure("vip.mch.leader",     "")
     C.ensure("vip.mch.followSame", true)
     C.ensure("vip.mch.crossFl",    true)
+    C.ensure("vip.mch.shareTgt",   false)
+    C.ensure("vip.mch.party",      false)
+    -- Hotkeys (asignables via el modal)
+    C.ensure("vip.hk.travel",     "")
+    C.ensure("vip.hk.refill",     "")
+    C.ensure("vip.hk.sell",       "")
+    C.ensure("vip.hk.stopAtk",    "Escape")
+    -- Utilidades
+    C.ensure("vip.xp.on",     false)
+    C.ensure("vip.xp.item",   0)      -- id del xp boost item (variable segun server)
+    C.ensure("vip.sta.on",    true)
+    C.ensure("vip.notif.death", true)
+    C.ensure("vip.notif.level", true)
+    C.ensure("vip.notif.loot",  false)
     C.ensure("vip.pk.on",          true)
     C.ensure("vip.pk.broadcast",   true)
+    -- UTILITY (Haste + Anti-Par + Utamo + 3 Anillos + 3 Amuletos)
+    C.ensure("vip.haste.on",    false)
+    C.ensure("vip.haste.spell", (RQ.Catalog.hasteSpells[vocIni] or {"utani hur"})[1])
+    C.ensure("vip.apar.on",     false)
+    C.ensure("vip.utamo.on",    false)
+    C.ensure("vip.utamo.mode",  true)   -- true=SPELL, false=RING
+    C.ensure("vip.utamo.spell", "utamo tempo")
+    C.ensure("vip.utamo.ring",  3049)   -- might ring como default para modo RING
+    for i=1,3 do
+        C.ensure("vip.ring"..i..".on",  false)
+        C.ensure("vip.ring"..i..".inv", 0)   -- itemId sin uso (en BP)
+        C.ensure("vip.ring"..i..".act", 0)   -- itemId cuando esta equipado (en slot)
+        C.ensure("vip.neck"..i..".on",  false)
+        C.ensure("vip.neck"..i..".inv", 0)
+        C.ensure("vip.neck"..i..".act", 0)
+    end
 
     -- ==================================================
     -- HELPERS DE BINDING
@@ -1092,11 +1122,41 @@ Panel
     color: #FFFFFF
     background-color: #C83C3C
     focusable: true
+
+  Label
+    id: btnMod
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    margin-top: 3
+    height: 26
+    text: [+]  MODULOS VBOT (nativos)
+    text-align: left
+    text-offset: 12 0
+    font: verdana-11px-rounded
+    color: #FFFFFF
+    background-color: #4A4A8C
+    focusable: true
+
+  Label
+    id: btnUtil
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    margin-top: 3
+    height: 26
+    text: [+]  UTILIDADES (XP boost, stamina)
+    text-align: left
+    text-offset: 12 0
+    font: verdana-11px-rounded
+    color: #FFFFFF
+    background-color: #5C4A2C
+    focusable: true
 ]==])
     local pCura = setupUI([==[
 Panel
   id: pageCura
-  height: 720
+  height: 1200
 
   Button
     id: btnBack
@@ -1569,6 +1629,483 @@ Panel
     margin-top: 2
     margin-left: 4
     margin-right: 4
+
+
+  Label
+    id: utilHdr
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text-align: center
+    text: === UTILITY (auto) ===
+    color: #D4AF37
+    background-color: #1A1A1A
+    font: verdana-11px-rounded
+    height: 16
+    margin-top: 12
+
+  Label
+    id: hasteLbl
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    text: Haste:
+    color: #C8C8C8
+    font: verdana-11px-rounded
+    height: 14
+    margin-top: 6
+    width: 60
+
+  BotSwitch
+    id: hasteOn
+    anchors.top: prev.top
+    anchors.left: prev.right
+    margin-left: 4
+    height: 20
+    width: 60
+    !text: tr('ON')
+
+  ComboBox
+    id: hasteSpell
+    anchors.top: prev.top
+    anchors.bottom: prev.bottom
+    anchors.left: prev.right
+    anchors.right: parent.right
+    margin-left: 6
+    margin-right: 4
+
+  Label
+    id: aparLbl
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    text: Anti-Par:
+    color: #C8C8C8
+    font: verdana-11px-rounded
+    height: 14
+    margin-top: 6
+    width: 60
+
+  BotSwitch
+    id: aparOn
+    anchors.top: prev.top
+    anchors.left: prev.right
+    margin-left: 4
+    height: 20
+    width: 60
+    !text: tr('ON')
+
+  Label
+    id: aparHint
+    anchors.top: prev.top
+    anchors.bottom: prev.bottom
+    anchors.left: prev.right
+    anchors.right: parent.right
+    text: (castea Haste al detectar)
+    text-align: center
+    color: #8A8A8A
+    font: verdana-11px-rounded
+    margin-left: 6
+    margin-right: 4
+
+  Label
+    id: utamoLbl
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    text: Utamo:
+    color: #C8C8C8
+    font: verdana-11px-rounded
+    height: 14
+    margin-top: 6
+    width: 60
+
+  BotSwitch
+    id: utamoOn
+    anchors.top: prev.top
+    anchors.left: prev.right
+    margin-left: 4
+    height: 20
+    width: 50
+    !text: tr('ON')
+
+  BotSwitch
+    id: utamoMode
+    anchors.top: prev.top
+    anchors.bottom: prev.bottom
+    anchors.left: prev.right
+    margin-left: 4
+    width: 50
+    !text: tr('SPELL')
+
+  TextEdit
+    id: utamoSpell
+    anchors.top: prev.top
+    anchors.bottom: prev.bottom
+    anchors.left: prev.right
+    anchors.right: utamoRing.left
+    margin-left: 4
+    margin-right: 4
+
+  BotItem
+    id: utamoRing
+    anchors.top: utamoOn.top
+    anchors.right: parent.right
+    margin-right: 4
+
+
+  Label
+    id: ringHdr
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text-align: center
+    text: -- ANILLOS (auto-equip) --
+    color: #D4AF37
+    background-color: #1A1A1A
+    font: verdana-11px-rounded
+    height: 14
+    margin-top: 8
+  Label
+    id: ring1lbl
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    text: Ring 1:
+    color: #C8C8C8
+    font: verdana-11px-rounded
+    height: 14
+    margin-top: 4
+    width: 50
+
+  BotSwitch
+    id: ring1on
+    anchors.top: prev.top
+    anchors.left: prev.right
+    margin-left: 4
+    height: 20
+    width: 50
+    !text: tr('ON')
+
+  Label
+    id: ring1invLbl
+    anchors.top: prev.top
+    anchors.bottom: prev.bottom
+    anchors.left: prev.right
+    text: sin:
+    text-align: center
+    color: #8A8A8A
+    font: verdana-11px-rounded
+    margin-left: 8
+    width: 26
+
+  BotItem
+    id: ring1inv
+    anchors.top: ring1on.top
+    anchors.left: prev.right
+    margin-left: 2
+
+  Label
+    id: ring1actLbl
+    anchors.top: ring1on.top
+    anchors.bottom: ring1on.bottom
+    anchors.left: prev.right
+    text: activo:
+    text-align: center
+    color: #8A8A8A
+    font: verdana-11px-rounded
+    margin-left: 8
+    width: 44
+
+  BotItem
+    id: ring1act
+    anchors.top: ring1on.top
+    anchors.left: prev.right
+    margin-left: 2
+  Label
+    id: ring2lbl
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    text: Ring 2:
+    color: #C8C8C8
+    font: verdana-11px-rounded
+    height: 14
+    margin-top: 4
+    width: 50
+
+  BotSwitch
+    id: ring2on
+    anchors.top: prev.top
+    anchors.left: prev.right
+    margin-left: 4
+    height: 20
+    width: 50
+    !text: tr('ON')
+
+  Label
+    id: ring2invLbl
+    anchors.top: prev.top
+    anchors.bottom: prev.bottom
+    anchors.left: prev.right
+    text: sin:
+    text-align: center
+    color: #8A8A8A
+    font: verdana-11px-rounded
+    margin-left: 8
+    width: 26
+
+  BotItem
+    id: ring2inv
+    anchors.top: ring2on.top
+    anchors.left: prev.right
+    margin-left: 2
+
+  Label
+    id: ring2actLbl
+    anchors.top: ring2on.top
+    anchors.bottom: ring2on.bottom
+    anchors.left: prev.right
+    text: activo:
+    text-align: center
+    color: #8A8A8A
+    font: verdana-11px-rounded
+    margin-left: 8
+    width: 44
+
+  BotItem
+    id: ring2act
+    anchors.top: ring2on.top
+    anchors.left: prev.right
+    margin-left: 2
+  Label
+    id: ring3lbl
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    text: Ring 3:
+    color: #C8C8C8
+    font: verdana-11px-rounded
+    height: 14
+    margin-top: 4
+    width: 50
+
+  BotSwitch
+    id: ring3on
+    anchors.top: prev.top
+    anchors.left: prev.right
+    margin-left: 4
+    height: 20
+    width: 50
+    !text: tr('ON')
+
+  Label
+    id: ring3invLbl
+    anchors.top: prev.top
+    anchors.bottom: prev.bottom
+    anchors.left: prev.right
+    text: sin:
+    text-align: center
+    color: #8A8A8A
+    font: verdana-11px-rounded
+    margin-left: 8
+    width: 26
+
+  BotItem
+    id: ring3inv
+    anchors.top: ring3on.top
+    anchors.left: prev.right
+    margin-left: 2
+
+  Label
+    id: ring3actLbl
+    anchors.top: ring3on.top
+    anchors.bottom: ring3on.bottom
+    anchors.left: prev.right
+    text: activo:
+    text-align: center
+    color: #8A8A8A
+    font: verdana-11px-rounded
+    margin-left: 8
+    width: 44
+
+  BotItem
+    id: ring3act
+    anchors.top: ring3on.top
+    anchors.left: prev.right
+    margin-left: 2
+
+  Label
+    id: neckHdr
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text-align: center
+    text: -- AMULETOS (auto-equip) --
+    color: #D4AF37
+    background-color: #1A1A1A
+    font: verdana-11px-rounded
+    height: 14
+    margin-top: 10
+  Label
+    id: neck1lbl
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    text: Neck 1:
+    color: #C8C8C8
+    font: verdana-11px-rounded
+    height: 14
+    margin-top: 4
+    width: 50
+
+  BotSwitch
+    id: neck1on
+    anchors.top: prev.top
+    anchors.left: prev.right
+    margin-left: 4
+    height: 20
+    width: 50
+    !text: tr('ON')
+
+  Label
+    id: neck1invLbl
+    anchors.top: prev.top
+    anchors.bottom: prev.bottom
+    anchors.left: prev.right
+    text: sin:
+    text-align: center
+    color: #8A8A8A
+    font: verdana-11px-rounded
+    margin-left: 8
+    width: 26
+
+  BotItem
+    id: neck1inv
+    anchors.top: neck1on.top
+    anchors.left: prev.right
+    margin-left: 2
+
+  Label
+    id: neck1actLbl
+    anchors.top: neck1on.top
+    anchors.bottom: neck1on.bottom
+    anchors.left: prev.right
+    text: activo:
+    text-align: center
+    color: #8A8A8A
+    font: verdana-11px-rounded
+    margin-left: 8
+    width: 44
+
+  BotItem
+    id: neck1act
+    anchors.top: neck1on.top
+    anchors.left: prev.right
+    margin-left: 2
+  Label
+    id: neck2lbl
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    text: Neck 2:
+    color: #C8C8C8
+    font: verdana-11px-rounded
+    height: 14
+    margin-top: 4
+    width: 50
+
+  BotSwitch
+    id: neck2on
+    anchors.top: prev.top
+    anchors.left: prev.right
+    margin-left: 4
+    height: 20
+    width: 50
+    !text: tr('ON')
+
+  Label
+    id: neck2invLbl
+    anchors.top: prev.top
+    anchors.bottom: prev.bottom
+    anchors.left: prev.right
+    text: sin:
+    text-align: center
+    color: #8A8A8A
+    font: verdana-11px-rounded
+    margin-left: 8
+    width: 26
+
+  BotItem
+    id: neck2inv
+    anchors.top: neck2on.top
+    anchors.left: prev.right
+    margin-left: 2
+
+  Label
+    id: neck2actLbl
+    anchors.top: neck2on.top
+    anchors.bottom: neck2on.bottom
+    anchors.left: prev.right
+    text: activo:
+    text-align: center
+    color: #8A8A8A
+    font: verdana-11px-rounded
+    margin-left: 8
+    width: 44
+
+  BotItem
+    id: neck2act
+    anchors.top: neck2on.top
+    anchors.left: prev.right
+    margin-left: 2
+  Label
+    id: neck3lbl
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    text: Neck 3:
+    color: #C8C8C8
+    font: verdana-11px-rounded
+    height: 14
+    margin-top: 4
+    width: 50
+
+  BotSwitch
+    id: neck3on
+    anchors.top: prev.top
+    anchors.left: prev.right
+    margin-left: 4
+    height: 20
+    width: 50
+    !text: tr('ON')
+
+  Label
+    id: neck3invLbl
+    anchors.top: prev.top
+    anchors.bottom: prev.bottom
+    anchors.left: prev.right
+    text: sin:
+    text-align: center
+    color: #8A8A8A
+    font: verdana-11px-rounded
+    margin-left: 8
+    width: 26
+
+  BotItem
+    id: neck3inv
+    anchors.top: neck3on.top
+    anchors.left: prev.right
+    margin-left: 2
+
+  Label
+    id: neck3actLbl
+    anchors.top: neck3on.top
+    anchors.bottom: neck3on.bottom
+    anchors.left: prev.right
+    text: activo:
+    text-align: center
+    color: #8A8A8A
+    font: verdana-11px-rounded
+    margin-left: 8
+    width: 44
+
+  BotItem
+    id: neck3act
+    anchors.top: neck3on.top
+    anchors.left: prev.right
+    margin-left: 2
 ]==]); pcall(function() pCura:hide() end)
     local pAtk  = setupUI([==[
 Panel
@@ -2104,7 +2641,7 @@ Panel
     local pMch  = setupUI([==[
 Panel
   id: pageMch
-  height: 280
+  height: 520
 
   Button
     id: btnBack
@@ -2137,7 +2674,7 @@ Panel
     anchors.right: parent.right
     margin-top: 8
     height: 22
-    !text: tr('Yo soy el LEADER')
+    !text: tr('YO SOY EL LEADER')
 
   Label
     id: mchLdrLbl
@@ -2158,14 +2695,27 @@ Panel
     margin-left: 4
     margin-right: 4
 
+  Label
+    id: mcSecHdr
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text-align: center
+    text: === CONFIG DEL MC ===
+    color: #D4AF37
+    background-color: #1A1A1A
+    font: verdana-11px-rounded
+    height: 16
+    margin-top: 10
+
   BotSwitch
     id: mchFollow
     anchors.top: prev.bottom
     anchors.left: parent.left
     anchors.right: parent.right
-    margin-top: 8
+    margin-top: 6
     height: 22
-    !text: tr('MCs siguen mismo piso')
+    !text: tr('MC sigue al leader (mismo piso)')
 
   BotSwitch
     id: mchCross
@@ -2174,7 +2724,123 @@ Panel
     anchors.right: parent.right
     margin-top: 4
     height: 22
-    !text: tr('MCs cruzan piso (escaleras)')
+    !text: tr('MC cruza piso (escaleras/alcantarilla/rope)')
+
+  BotSwitch
+    id: mchShareTgt
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    margin-top: 4
+    height: 22
+    !text: tr('MC ataca el mismo target que leader')
+
+  Label
+    id: cmdSecHdr
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text-align: center
+    text: === COMANDOS DEL LEADER ===
+    color: #D4AF37
+    background-color: #1A1A1A
+    font: verdana-11px-rounded
+    height: 16
+    margin-top: 10
+
+  Label
+    id: cmdHint
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text-align: center
+    text: (solo funcionan si sos LEADER)
+    color: #8A8A8A
+    font: verdana-11px-rounded
+    height: 12
+    margin-top: 2
+
+  Label
+    id: btnTravel
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    margin-top: 6
+    height: 24
+    text: [>] TRAVEL MC (elegir ciudad)
+    text-align: left
+    text-offset: 12 0
+    font: verdana-11px-rounded
+    color: #FFFFFF
+    background-color: #326432
+    focusable: true
+
+  Label
+    id: btnRefill
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    margin-top: 4
+    height: 24
+    text: [>] REFILL ALL (todos comprran)
+    text-align: left
+    text-offset: 12 0
+    font: verdana-11px-rounded
+    color: #FFFFFF
+    background-color: #2E5AA0
+    focusable: true
+
+  Label
+    id: btnSell
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    margin-top: 4
+    height: 24
+    text: [>] SELL ALL (todos venden loot)
+    text-align: left
+    text-offset: 12 0
+    font: verdana-11px-rounded
+    color: #FFFFFF
+    background-color: #B2743A
+    focusable: true
+
+  Label
+    id: btnHotkeys
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    margin-top: 4
+    height: 24
+    text: [>] HOTKEYS (asignar teclas)
+    text-align: left
+    text-offset: 12 0
+    font: verdana-11px-rounded
+    color: #FFFFFF
+    background-color: #6E3AB2
+    focusable: true
+
+  Label
+    id: partySecHdr
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text-align: center
+    text: === PARTY CHAT ===
+    color: #D4AF37
+    background-color: #1A1A1A
+    font: verdana-11px-rounded
+    height: 16
+    margin-top: 10
+
+  BotSwitch
+    id: partyOn
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    margin-top: 6
+    height: 22
+    !text: tr('Auto-party (aceptar/enviar invites)')
 ]==]);  pcall(function() pMch:hide() end)
     local pPk   = setupUI([==[
 Panel
@@ -2295,7 +2961,284 @@ Panel
     height: 14
     margin-top: 6
 ]==]);  pcall(function() pHub:hide() end)
-    RQ._vipPages = {menu=pMenu, cura=pCura, atk=pAtk, ex=pEx, tgt=pTgt, fol=pFol, mch=pMch, pk=pPk, hub=pHub}
+
+    -- PAGINA MODULOS VBOT (acceso a modulos nativos)
+    local pMod = setupUI([==[
+Panel
+  id: pageMod
+  height: 460
+
+  Button
+    id: btnBack
+    anchors.top: parent.top
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text: << Volver al menu
+    font: cipsoftFont
+    color: #FFFFFF
+    background-color: #555555
+    height: 22
+
+  Label
+    id: title
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text-align: center
+    text: MODULOS VBOT (nativos)
+    color: #D4AF37
+    background-color: #232323
+    font: verdana-11px-rounded
+    height: 20
+    margin-top: 4
+
+  Label
+    id: hint
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text-align: center
+    text: Prende/apaga los modulos nativos del bot desde aca
+    color: #8A8A8A
+    font: verdana-11px-rounded
+    height: 14
+    margin-top: 2
+
+  BotSwitch
+    id: swHealBot
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    margin-top: 8
+    height: 20
+    !text: tr('HealBot (vBot nativo)')
+
+  BotSwitch
+    id: swAttackBot
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    margin-top: 3
+    height: 20
+    !text: tr('AttackBot (vBot nativo)')
+
+  BotSwitch
+    id: swCaveBot
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    margin-top: 3
+    height: 20
+    !text: tr('CaveBot (vBot nativo)')
+
+  BotSwitch
+    id: swCombo
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    margin-top: 3
+    height: 20
+    !text: tr('ComboBot (combos con leader)')
+
+  BotSwitch
+    id: swAnalyzer
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    margin-top: 3
+    height: 20
+    !text: tr('Analyzer (loot/exp/hora)')
+
+  BotSwitch
+    id: swDropper
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    margin-top: 3
+    height: 20
+    !text: tr('Dropper (drop tracker)')
+
+  BotSwitch
+    id: swAlarmas
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    margin-top: 3
+    height: 20
+    !text: tr('Alarmas (bajo HP, PK, etc)')
+
+  BotSwitch
+    id: swAntiRs
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    margin-top: 3
+    height: 20
+    !text: tr('Anti-RS (hide chars)')
+
+  BotSwitch
+    id: swHoldTgt
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    margin-top: 3
+    height: 20
+    !text: tr('Hold Target (mantener boss)')
+
+  BotSwitch
+    id: swQuiver
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    margin-top: 3
+    height: 20
+    !text: tr('Quiver Manager (auto flechas)')
+
+  BotSwitch
+    id: swPushMax
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    margin-top: 3
+    height: 20
+    !text: tr('PushMax (mover monstruos)')
+]==]);  pcall(function() pMod:hide() end)
+
+    -- PAGINA UTILIDADES (XP Boost + Stamina + Blessings + notifs)
+    local pUtil = setupUI([==[
+Panel
+  id: pageUtil
+  height: 380
+
+  Button
+    id: btnBack
+    anchors.top: parent.top
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text: << Volver al menu
+    font: cipsoftFont
+    color: #FFFFFF
+    background-color: #555555
+    height: 22
+
+  Label
+    id: title
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text-align: center
+    text: UTILIDADES
+    color: #D4AF37
+    background-color: #232323
+    font: verdana-11px-rounded
+    height: 20
+    margin-top: 4
+
+  Label
+    id: xpHdr
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text-align: center
+    text: === XP BOOST AUTO ===
+    color: #D4AF37
+    background-color: #1A1A1A
+    font: verdana-11px-rounded
+    height: 16
+    margin-top: 8
+
+  BotSwitch
+    id: xpOn
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    margin-top: 6
+    height: 20
+    !text: tr('Auto-usar XP Boost cada 6h')
+
+  BotItem
+    id: xpItem
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    margin-top: 4
+    margin-left: 4
+
+  Label
+    id: xpTxt
+    anchors.top: prev.top
+    anchors.bottom: prev.bottom
+    anchors.left: prev.right
+    anchors.right: parent.right
+    text-align: center
+    text: (item de xp boost)
+    color: #C8C8C8
+    font: verdana-11px-rounded
+    margin-left: 6
+
+  Label
+    id: staHdr
+    anchors.top: xpItem.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text-align: center
+    text: === STAMINA WATCH ===
+    color: #D4AF37
+    background-color: #1A1A1A
+    font: verdana-11px-rounded
+    height: 16
+    margin-top: 10
+
+  BotSwitch
+    id: staOn
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    margin-top: 6
+    height: 20
+    !text: tr('Avisar al bajar de 14h stamina')
+
+  Label
+    id: notifHdr
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text-align: center
+    text: === NOTIFICACIONES AL LEADER ===
+    color: #D4AF37
+    background-color: #1A1A1A
+    font: verdana-11px-rounded
+    height: 16
+    margin-top: 10
+
+  BotSwitch
+    id: notifDeath
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    margin-top: 6
+    height: 20
+    !text: tr('MC muerto -> avisar al leader')
+
+  BotSwitch
+    id: notifLevel
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    margin-top: 3
+    height: 20
+    !text: tr('MC level up -> avisar al leader')
+
+  BotSwitch
+    id: notifLoot
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    margin-top: 3
+    height: 20
+    !text: tr('MC lootea item raro -> avisar')
+]==]);  pcall(function() pUtil:hide() end)
+
+    RQ._vipPages = {menu=pMenu, cura=pCura, atk=pAtk, ex=pEx, tgt=pTgt, fol=pFol, mch=pMch, pk=pPk, hub=pHub, mod=pMod, util=pUtil}
 
     local function showPage(name)
         for k, p in pairs(RQ._vipPages) do
@@ -2343,6 +3286,8 @@ Panel
     bindMenuBtn(pMenu.btnFol,  "fol")
     bindMenuBtn(pMenu.btnMch,  "mch")
     bindMenuBtn(pMenu.btnPk,   "pk")
+    bindMenuBtn(pMenu.btnMod,  "mod")
+    bindMenuBtn(pMenu.btnUtil, "util")
 
     -- Todos los "Volver" vuelven al menu
     for _, p in ipairs({pCura, pAtk, pEx, pTgt, pFol, pMch, pPk, pHub}) do
@@ -2385,6 +3330,39 @@ Panel
         bindCuraSlot(pCura, "mp", i, defMp[i], defMpPct[i], "MP")
     end
 
+    -- UTILITY: Haste (combo con opciones por voc)
+    bindSwitch(pCura.hasteOn, "vip.haste.on", false)
+    fillCombo(pCura.hasteSpell, RQ.Catalog.hasteSpells[currentVoc] or {"utani hur"}, C.get("vip.haste.spell"))
+    bindCombo(pCura.hasteSpell, "vip.haste.spell")
+    -- Anti-Paralyze
+    bindSwitch(pCura.aparOn, "vip.apar.on", false)
+    -- Utamo (SPELL o RING segun toggle)
+    bindSwitch(pCura.utamoOn, "vip.utamo.on", false)
+    bindText(pCura.utamoSpell, "vip.utamo.spell", "utamo tempo")
+    bindItem(pCura.utamoRing, "vip.utamo.ring", 3049)
+    local function refreshUtamoMode()
+        local isSpell = C.get("vip.utamo.mode", true) and true or false
+        pcall(function() pCura.utamoMode:setText(isSpell and "SPELL" or "RING") end)
+        pcall(function() pCura.utamoMode:setOn(isSpell) end)
+        pcall(function() pCura.utamoSpell:setVisible(isSpell) end)
+        pcall(function() pCura.utamoRing:setVisible(not isSpell) end)
+    end
+    refreshUtamoMode()
+    pcall(function() pCura.utamoMode.onClick = function()
+        local n = not C.get("vip.utamo.mode", true)
+        C.set("vip.utamo.mode", n)
+        refreshUtamoMode()
+    end end)
+    -- 3 Anillos + 3 Amuletos (cada uno con ID sin uso + ID activo)
+    for i=1,3 do
+        bindSwitch(pCura["ring"..i.."on"],  "vip.ring"..i..".on",  false)
+        bindItem(pCura["ring"..i.."inv"],   "vip.ring"..i..".inv", 0)
+        bindItem(pCura["ring"..i.."act"],   "vip.ring"..i..".act", 0)
+        bindSwitch(pCura["neck"..i.."on"],  "vip.neck"..i..".on",  false)
+        bindItem(pCura["neck"..i.."inv"],   "vip.neck"..i..".inv", 0)
+        bindItem(pCura["neck"..i.."act"],   "vip.neck"..i..".act", 0)
+    end
+
     -- ==================================================
     -- PAGINA SPELLS ATAQUE
     -- ==================================================
@@ -2420,6 +3398,101 @@ Panel
     bindText(pMch.mchLeader, "vip.mch.leader", "")
     bindSwitch(pMch.mchFollow, "vip.mch.followSame", true)
     bindSwitch(pMch.mchCross, "vip.mch.crossFl", true)
+    bindSwitch(pMch.mchShareTgt, "vip.mch.shareTgt", false)
+    bindSwitch(pMch.partyOn, "vip.mch.party", false)
+
+    -- =================================================
+    -- COMANDOS DEL LEADER (Travel MC / Refill All / Sell All / Hotkeys)
+    -- =================================================
+    local TRAVEL_CITIES = {
+        "Thais", "Venore", "Carlin", "Ab'Dendriel", "Kazordoon",
+        "Ankrahmun", "Darashia", "Edron", "Liberty Bay", "Port Hope",
+        "Svargrond", "Yalahar", "Farmine", "Rathleton", "Krailos",
+        "Issavi", "Silvertides",
+    }
+
+    local function _leaderOnly(fn)
+        return function()
+            if not C.get("vip.mch.isLeader", false) then
+                pcall(function() displayInfoBox("RScriptz",
+                    "Solo el LEADER puede usar estos comandos.\n"..
+                    "Activa 'YO SOY EL LEADER' arriba primero.") end)
+                return
+            end
+            if not RQ.Net.conectado then
+                pcall(function() displayErrorBox("RScriptz",
+                    "El hub no esta conectado. Iniciate RQ_Hub.py y reconectate.") end)
+                return
+            end
+            fn()
+        end
+    end
+
+    -- TRAVEL MC: menu de ciudades -> broadcast a MCs
+    local function bindLeaderBtn(w, fn)
+        if not w then return end
+        pcall(function() w.onMousePress = function(_, _, b) if b == 1 or b == nil then fn() end; return true end end)
+        pcall(function() w.onClick = fn end)
+    end
+
+    bindLeaderBtn(pMch.btnTravel, _leaderOnly(function()
+        local buttons = {}
+        for _, city in ipairs(TRAVEL_CITIES) do
+            buttons[#buttons+1] = {text = city, callback = function()
+                RQ.Net.send("travel", {city = city})
+                pcall(function() whiteInfoMessage("[RScriptz] Travel MC a "..city.." enviado a "..#RQ.Catalog.vocations.." MCs") end)
+                -- el leader tambien viaja (self-dispara)
+                pcall(function() say("hi") end)
+                RQ.Scheduler.every("rq_leader_travel_1", 500, function()
+                    pcall(function() say(city) end); RQ.Scheduler.remove("rq_leader_travel_1")
+                end)
+                RQ.Scheduler.every("rq_leader_travel_2", 1000, function()
+                    pcall(function() say("yes") end); RQ.Scheduler.remove("rq_leader_travel_2")
+                end)
+            end}
+            if #buttons >= 4 then break end   -- displayGeneralBox soporta max 4 botones
+        end
+        -- Como hay muchas ciudades y displayGeneralBox tiene limite,
+        -- usamos client_textedit para que el leader escriba el nombre
+        modules.client_textedit.show(nil, {
+            title = "Travel MC",
+            description = "Escribi la ciudad destino (ej: Thais, Venore, Carlin, Edron,\n"..
+                          "Ankrahmun, Darashia, Kazordoon, Liberty Bay, Port Hope,\n"..
+                          "Svargrond, Yalahar, Farmine, Rathleton, Krailos, Issavi):",
+        }, function(city)
+            if not city or city == "" then return end
+            RQ.Net.send("travel", {city = city})
+            pcall(function() whiteInfoMessage("[RScriptz] Travel a "..city.." enviado a MCs") end)
+            -- self-dispara para el leader tambien
+            pcall(function() say("hi") end)
+            RQ.Scheduler.every("rq_leader_tr_1", 600, function()
+                pcall(function() say(city) end); RQ.Scheduler.remove("rq_leader_tr_1")
+            end)
+            RQ.Scheduler.every("rq_leader_tr_2", 1200, function()
+                pcall(function() say("yes") end); RQ.Scheduler.remove("rq_leader_tr_2")
+            end)
+        end)
+    end))
+
+    bindLeaderBtn(pMch.btnRefill, _leaderOnly(function()
+        RQ.Net.send("refill_all", {})
+        pcall(function() whiteInfoMessage("[RScriptz] REFILL ALL enviado a MCs") end)
+    end))
+
+    bindLeaderBtn(pMch.btnSell, _leaderOnly(function()
+        RQ.Net.send("sell_all", {})
+        pcall(function() whiteInfoMessage("[RScriptz] SELL ALL enviado a MCs") end)
+    end))
+
+    -- HOTKEYS: modal para asignar teclas
+    bindLeaderBtn(pMch.btnHotkeys, function()
+        pcall(function() displayInfoBox("RScriptz Hotkeys",
+            "Asigna hotkeys en la consola del bot con:\n\n"..
+            "/lua storage.rscriptz['<nombre>'].vip.hk.travel = 'F1'\n"..
+            "/lua storage.rscriptz['<nombre>'].vip.hk.refill = 'F2'\n"..
+            "/lua storage.rscriptz['<nombre>'].vip.hk.sell   = 'F3'\n\n"..
+            "Proxima version: modal visual con teclas asignables.") end)
+    end)
 
     bindSwitch(pPk.pkOn, "vip.pk.on", true)
     bindSwitch(pPk.pkBroadcast, "vip.pk.broadcast", true)
@@ -2438,6 +3511,65 @@ Panel
             end
         end)
     end)
+
+    -- ==================================================
+    -- PAGINA MODULOS VBOT: toggles rapidos
+    -- ==================================================
+    -- Cada modulo tiene distintas APIs. Envolvemos todo en pcall.
+    local function toggleModulo(sw, apiName, tblGlobal)
+        if not sw then return end
+        -- Estado inicial: leer del modulo si expone .isOn()
+        local isOn = false
+        pcall(function()
+            if tblGlobal and tblGlobal.isOn then isOn = tblGlobal.isOn() end
+        end)
+        pcall(function() sw:setOn(isOn) end)
+        pcall(function() sw.onClick = function(w)
+            local newState = not (C.get("vip.mod."..apiName, false))
+            C.set("vip.mod."..apiName, newState)
+            pcall(function() w:setOn(newState) end)
+            -- llamar API del modulo si existe
+            pcall(function()
+                if newState and tblGlobal and tblGlobal.setOn then tblGlobal.setOn() end
+                if not newState and tblGlobal and tblGlobal.setOff then tblGlobal.setOff() end
+            end)
+            pcall(function() whiteInfoMessage("[RScriptz] "..apiName..": "..(newState and "ON" or "OFF")) end)
+        end end)
+    end
+    -- Nota: HealBot, AttackBot, TargetBot, CaveBot, Combo exponen .isOn/.setOn/.setOff en vBot
+    -- Los otros modulos usan storage-based toggles (los prendemos setteando su storage)
+    toggleModulo(pMod.swHealBot,   "HealBot",   _G.HealBot)
+    toggleModulo(pMod.swAttackBot, "AttackBot", _G.AttackBot)
+    toggleModulo(pMod.swCaveBot,   "CaveBot",   _G.CaveBot)
+    toggleModulo(pMod.swCombo,     "Combo",     _G.Combo)
+    -- Los siguientes no siempre tienen API global -- toggle solo guarda estado y avisa al usuario
+    -- que abra el modulo desde su pestana nativa (Cave/HP/Tools) para configurarlo
+    local function toggleGeneric(sw, name)
+        if not sw then return end
+        pcall(function() sw:setOn(C.get("vip.mod."..name, false) and true or false) end)
+        pcall(function() sw.onClick = function(w)
+            local n = not C.get("vip.mod."..name, false)
+            C.set("vip.mod."..name, n); pcall(function() w:setOn(n) end)
+            pcall(function() whiteInfoMessage("[RScriptz] "..name..": "..(n and "ON" or "OFF").." -- configurar desde pestana nativa") end)
+        end end)
+    end
+    toggleGeneric(pMod.swAnalyzer,  "Analyzer")
+    toggleGeneric(pMod.swDropper,   "Dropper")
+    toggleGeneric(pMod.swAlarmas,   "Alarmas")
+    toggleGeneric(pMod.swAntiRs,    "AntiRs")
+    toggleGeneric(pMod.swHoldTgt,   "HoldTarget")
+    toggleGeneric(pMod.swQuiver,    "Quiver")
+    toggleGeneric(pMod.swPushMax,   "PushMax")
+
+    -- ==================================================
+    -- PAGINA UTILIDADES: XP Boost + Stamina + Notifs
+    -- ==================================================
+    bindSwitch(pUtil.xpOn, "vip.xp.on", false)
+    bindItem(pUtil.xpItem, "vip.xp.item", 0)
+    bindSwitch(pUtil.staOn, "vip.sta.on", true)
+    bindSwitch(pUtil.notifDeath, "vip.notif.death", true)
+    bindSwitch(pUtil.notifLevel, "vip.notif.level", true)
+    bindSwitch(pUtil.notifLoot,  "vip.notif.loot",  false)
 
     -- ==================================================
     -- MACROS
@@ -2470,6 +3602,102 @@ Panel
                     if sp ~= "" then safeCast(sp) end
                 end
                 return
+            end
+        end
+    end)
+
+    -- Helper generico para chequear un state (Haste=32, Paralyze=16, MagicShield=64)
+    local function _rqState(mask)
+        local ok, s = pcall(function() return player:getStates() end)
+        if not ok or type(s) ~= "number" then return false end
+        return (s % (mask * 2)) >= mask
+    end
+
+    -- UTILITY: Haste (auto-detecta buff, no spamea)
+    macro(1000, "RScriptz VIP: Haste", function()
+        if RQ.tier ~= "VIP" or not C.get("vip.master", true) then return end
+        if not C.get("vip.haste.on", false) then return end
+        if _rqState(32) then return end   -- ya tenes haste activo
+        local sp = C.get("vip.haste.spell", "utani hur")
+        if sp and sp ~= "" then safeCast(sp) end
+    end)
+
+    -- UTILITY: Anti-Paralyze (detecta state 16, castea haste para cancelar)
+    macro(200, "RScriptz VIP: Anti-Paralyze", function()
+        if RQ.tier ~= "VIP" or not C.get("vip.master", true) then return end
+        if not C.get("vip.apar.on", false) then return end
+        if _rqState(16) then
+            local sp = C.get("vip.haste.spell", "utani hur")
+            if sp and sp ~= "" then safeCast(sp) end
+        end
+    end)
+
+    -- UTILITY: Utamo (SPELL o RING segun modo)
+    macro(1000, "RScriptz VIP: Utamo", function()
+        if RQ.tier ~= "VIP" or not C.get("vip.master", true) then return end
+        if not C.get("vip.utamo.on", false) then return end
+        if _rqState(64) then return end   -- ya tenes utamo/magic shield
+        if C.get("vip.utamo.mode", true) then
+            -- modo SPELL: castear
+            local sp = C.get("vip.utamo.spell", "utamo tempo")
+            if sp and sp ~= "" then safeCast(sp) end
+        else
+            -- modo RING: equipar el ring
+            local rid = tonumber(C.get("vip.utamo.ring", 0)) or 0
+            if rid > 0 then
+                local slot; pcall(function() slot = player:getInventoryItem(9) end)
+                if slot and slot:getId() == rid then return end
+                pcall(function()
+                    for _, cont in pairs(g_game.getContainers() or {}) do
+                        for _, it in ipairs(cont:getItems() or {}) do
+                            if it:getId() == rid then g_game.equipItem(it); return end
+                        end
+                    end
+                end)
+            end
+        end
+    end)
+
+    -- helper: equipa itemId en slot si no esta puesto. Reconoce inv+act como "puesto".
+    local function _rqEquipar(invId, actId, slotIdx)
+        invId = tonumber(invId) or 0
+        actId = tonumber(actId) or invId
+        if invId <= 0 then return end
+        local slot; pcall(function() slot = player:getInventoryItem(slotIdx) end)
+        if slot then
+            local sid = slot:getId()
+            if sid == invId or (actId > 0 and sid == actId) then return end  -- ya esta puesto
+        end
+        -- buscar el invId en containers y equiparlo
+        pcall(function()
+            for _, cont in pairs(g_game.getContainers() or {}) do
+                for _, it in ipairs(cont:getItems() or {}) do
+                    if it:getId() == invId then g_game.equipItem(it); return end
+                end
+            end
+        end)
+    end
+
+    -- 3 Anillos (slot 9): recorre en orden, equipa el primero que este ON con inv > 0
+    macro(2000, "RScriptz VIP: Anillos auto", function()
+        if RQ.tier ~= "VIP" or not C.get("vip.master", true) then return end
+        for i=1,3 do
+            if C.get("vip.ring"..i..".on", false) then
+                local inv = tonumber(C.get("vip.ring"..i..".inv")) or 0
+                local act = tonumber(C.get("vip.ring"..i..".act")) or 0
+                if inv > 0 then _rqEquipar(inv, act, 9); return end
+            end
+        end
+    end)
+
+    -- 3 Amuletos (slot 2)
+    macro(2000, "RScriptz VIP: Amuletos auto", function()
+        if RQ.tier ~= "VIP" or not C.get("vip.master", true) then return end
+        for i=1,3 do
+            if C.get("vip.neck"..i..".on", false) then
+                local inv = tonumber(C.get("vip.neck"..i..".inv")) or 0
+                local act = tonumber(C.get("vip.neck"..i..".act")) or 0
+                if inv > 0 then _rqEquipar(inv, act, 2); return end
             end
         end
     end)
@@ -2515,6 +3743,43 @@ Panel
         end
         if mejor and mejor.ref then pcall(function() attack(mejor.ref) end) end
     end)
+    -- Helper: abre PUERTA / ESCALERA / ALCANTARILLA en el proximo tile
+    -- hacia el destino. Prueba use, luego useWith(rope/shovel/pick).
+    -- Solo actua si no hay camino directo (hayCamino=false).
+    local function _rqAbrirObstaculo(destPos)
+        local mi = RQ.Game.pos()
+        if not mi or not destPos then return end
+        -- calcular direccion (1 tile) hacia destino
+        local dx = 0; if destPos.x > mi.x then dx = 1 elseif destPos.x < mi.x then dx = -1 end
+        local dy = 0; if destPos.y > mi.y then dy = 1 elseif destPos.y < mi.y then dy = -1 end
+        if dx == 0 and dy == 0 then return end
+        -- proximo tile a intentar (puede ser diagonal, cardinal, o ambos)
+        local candidatos = {{x=mi.x+dx, y=mi.y+dy, z=mi.z}}
+        if dx ~= 0 and dy ~= 0 then
+            -- si va diagonal, tambien probar cardinales por si hay puerta al lado
+            candidatos[#candidatos+1] = {x=mi.x+dx, y=mi.y, z=mi.z}
+            candidatos[#candidatos+1] = {x=mi.x, y=mi.y+dy, z=mi.z}
+        end
+        for _, p in ipairs(candidatos) do
+            local tile
+            pcall(function() tile = g_map.getTile(p) end)
+            if tile then
+                local top = tile:getTopUseThing() or tile:getTopMoveThing()
+                if top then
+                    -- 1. Intentar USE simple (puertas, alcantarillas, escaleras cerradas)
+                    pcall(function() use(tile) end)
+                    -- 2. Rope (por si es alcantarilla hacia arriba)
+                    pcall(function() useWith(3003, top) end)
+                    -- 3. Shovel (por si es tierra encima de alcantarilla)
+                    pcall(function() useWith(3457, top) end)
+                    -- 4. Pick (por si es rejilla que hay que picar)
+                    pcall(function() useWith(3457, top) end)
+                    return
+                end
+            end
+        end
+    end
+
     macro(300, "RScriptz VIP: Follow", function()
         if RQ.tier ~= "VIP" or not C.get("vip.master", true) then return end
         if not C.get("vip.fol.on", false) then return end
@@ -2523,26 +3788,41 @@ Panel
         local miPos = RQ.Game.pos(); if not miPos or ldr.pos.z ~= miPos.z then return end
         local d = RQ.Game.dist(miPos, ldr.pos)
         local maxD = tonumber(C.get("vip.fol.dist", 2)) or 2
-        if d > maxD and RQ.Game.hayCamino(ldr.pos, 20) then RQ.Game.irHacia(ldr.pos, 20) end
+        if d <= maxD then return end
+        if RQ.Game.hayCamino(ldr.pos, 20) then
+            RQ.Game.irHacia(ldr.pos, 20)
+        else
+            -- No hay camino directo -- probablemente puerta cerrada
+            _rqAbrirObstaculo(ldr.pos)
+        end
     end)
-    RQ.Scheduler.every("rq_vip_mchpub", 200, function()
+    -- Publisher del LEADER: usa onCreaturePositionChange (evento nativo, ~10ms)
+    -- para publicar posicion en el INSTANTE que el server confirma el movimiento,
+    -- sin depender del scheduler. Esto iguala la latencia de DreamNav.
+    pcall(function()
+        onCreaturePositionChange(function(cr, newPos, oldPos)
+            if cr ~= player then return end
+            if RQ.tier ~= "VIP" or not C.get("vip.master", true) then return end
+            if not C.get("vip.mch.isLeader", false) then return end
+            if not RQ.Net.conectado or not newPos then return end
+            RQ.Net.send("leader_pos", {x=newPos.x, y=newPos.y, z=newPos.z})
+            -- si cambio de piso, publicar cross en el MISMO instante
+            if oldPos and oldPos.z ~= newPos.z then
+                RQ.Net.send("leader_cross", {x=newPos.x, y=newPos.y, zOld=oldPos.z, zNew=newPos.z})
+            end
+        end)
+    end)
+
+    -- Fallback: si onCreaturePositionChange no existe o falla, seguir publicando
+    -- cada 500ms como backup (menor frecuencia que antes porque el evento hace el trabajo)
+    RQ.Scheduler.every("rq_vip_mchpub", 500, function()
         if RQ.tier ~= "VIP" or not C.get("vip.master", true) then return end
         if not C.get("vip.mch.isLeader", false) then return end
         if not RQ.Net.conectado then return end
         local p = RQ.Game.pos(); if not p then return end
         RQ.Net.send("leader_pos", {x=p.x, y=p.y, z=p.z})
     end)
-    local lastZ = nil
-    RQ.Scheduler.every("rq_vip_mchcross", 200, function()
-        if RQ.tier ~= "VIP" or not C.get("vip.master", true) then return end
-        if not C.get("vip.mch.isLeader", false) then return end
-        if not RQ.Net.conectado then return end
-        local p = RQ.Game.pos(); if not p then return end
-        if lastZ and lastZ ~= p.z then
-            RQ.Net.send("leader_cross", {x=p.x, y=p.y, zOld=lastZ, zNew=p.z})
-        end
-        lastZ = p.z
-    end)
+
     RQ.Net.on("leader_pos", function(from, data)
         if RQ.tier ~= "VIP" or not C.get("vip.master", true) then return end
         if C.get("vip.mch.isLeader", false) then return end
@@ -2550,22 +3830,158 @@ Panel
         if C.get("vip.mch.leader", "") ~= from then return end
         if not data or not data.x then return end
         local mi = RQ.Game.pos(); if not mi or data.z ~= mi.z then return end
+        local destino = {x=data.x, y=data.y, z=data.z}
         local d = RQ.Game.dist(mi, {x=data.x, y=data.y})
-        if d > 3 and RQ.Game.hayCamino({x=data.x, y=data.y, z=data.z}, 30) then
-            RQ.Game.irHacia({x=data.x, y=data.y, z=data.z}, 30)
+        if d <= 3 then return end
+        if RQ.Game.hayCamino(destino, 30) then
+            RQ.Game.irHacia(destino, 30)
+        else
+            -- puerta cerrada en el camino? intentar abrir
+            _rqAbrirObstaculo(destino)
         end
     end)
+
+    -- Cruce de piso: MC va al tile exacto y al llegar usa el item (para
+    -- alcantarilla/rope si sube, o pisar si baja). Reintenta 25 veces cada
+    -- 400ms (=10s timeout) hasta llegar y cruzar.
     RQ.Net.on("leader_cross", function(from, data)
         if RQ.tier ~= "VIP" or not C.get("vip.master", true) then return end
         if C.get("vip.mch.isLeader", false) then return end
         if not C.get("vip.mch.crossFl", true) then return end
         if C.get("vip.mch.leader", "") ~= from then return end
         if not data or not data.x then return end
-        local mi = RQ.Game.pos(); if not mi then return end
-        if mi.z == data.zOld and RQ.Game.hayCamino({x=data.x, y=data.y, z=data.zOld}, 20) then
-            RQ.Game.irHacia({x=data.x, y=data.y, z=data.zOld}, 20)
+        local mi = RQ.Game.pos(); if not mi or mi.z ~= data.zOld then return end
+        if not RQ.Game.hayCamino({x=data.x, y=data.y, z=data.zOld}, 30) then return end
+        RQ.Game.irHacia({x=data.x, y=data.y, z=data.zOld}, 30)
+
+        local key = "rq_vip_cross_"..data.x.."_"..data.y.."_"..data.zOld
+        local tries = 0
+        RQ.Scheduler.every(key, 400, function()
+            tries = tries + 1
+            if tries > 25 then RQ.Scheduler.remove(key); return end
+            local ahora = RQ.Game.pos()
+            if not ahora then return end
+            -- Si ya crucce el piso, listo
+            if ahora.z == data.zNew then RQ.Scheduler.remove(key); return end
+            -- Estoy en el tile del cruce?
+            if ahora.x == data.x and ahora.y == data.y and ahora.z == data.zOld then
+                pcall(function()
+                    local tile = g_map.getTile({x=data.x, y=data.y, z=ahora.z})
+                    if not tile then return end
+                    local top = tile:getTopUseThing() or tile:getTopMoveThing()
+                    if data.zNew < data.zOld then
+                        -- SUBIENDO (z decrece): probar rope y luego use
+                        pcall(function() useWith(3003, top or tile) end)  -- rope
+                        pcall(function() use(tile) end)
+                    else
+                        -- BAJANDO: probar use (alcantarilla), luego shovel/pick por si hay tierra/rejilla
+                        pcall(function() use(tile) end)
+                        pcall(function() useWith(3457, top or tile) end)  -- shovel
+                        pcall(function() useWith(3456, top or tile) end)  -- pick
+                    end
+                end)
+            end
+        end)
+    end)
+
+    -- =================================================
+    -- MCs: recibir comandos del LEADER (Travel / Refill / Sell)
+    -- =================================================
+    -- TRAVEL: MC dice "hi", <ciudad>, "yes" con delays al NPC del barco cercano
+    RQ.Net.on("travel", function(from, data)
+        if RQ.tier ~= "VIP" or not C.get("vip.master", true) then return end
+        if C.get("vip.mch.isLeader", false) then return end  -- leader no auto-viaja aca
+        if C.get("vip.mch.leader", "") ~= from then return end
+        if not data or not data.city then return end
+        local city = tostring(data.city)
+        pcall(function() whiteInfoMessage("[RScriptz] Leader mando TRAVEL -> "..city) end)
+        pcall(function() say("hi") end)
+        RQ.Scheduler.every("rq_mc_travel_1_"..city, 600, function()
+            pcall(function() say(city) end)
+            RQ.Scheduler.remove("rq_mc_travel_1_"..city)
+        end)
+        RQ.Scheduler.every("rq_mc_travel_2_"..city, 1300, function()
+            pcall(function() say("yes") end)
+            RQ.Scheduler.remove("rq_mc_travel_2_"..city)
+        end)
+    end)
+
+    -- REFILL ALL: por ahora aviso al usuario (la logica real de refill vive
+    -- en el modulo Supply del cavebot que se conectara en el proximo push)
+    RQ.Net.on("refill_all", function(from, data)
+        if RQ.tier ~= "VIP" or not C.get("vip.master", true) then return end
+        if C.get("vip.mch.leader", "") ~= from and not C.get("vip.mch.isLeader", false) then return end
+        pcall(function() whiteInfoMessage("[RScriptz] Leader mando REFILL ALL") end)
+        pcall(function() statusMessage("[RScriptz] Iniciar refill (config manual)") end)
+        -- placeholder: el modulo Supply MC del proximo push hara el refill real
+        -- basado en la lista compartida con el cavebot supply
+    end)
+
+    -- SELL ALL: idem
+    RQ.Net.on("sell_all", function(from, data)
+        if RQ.tier ~= "VIP" or not C.get("vip.master", true) then return end
+        if C.get("vip.mch.leader", "") ~= from and not C.get("vip.mch.isLeader", false) then return end
+        pcall(function() whiteInfoMessage("[RScriptz] Leader mando SELL ALL") end)
+        pcall(function() statusMessage("[RScriptz] Iniciar sell loot (config manual)") end)
+    end)
+
+    -- =================================================
+    -- SHARE TARGET (MC) + PARTY chat auto
+    -- =================================================
+    -- Leader publica su target periodicamente si shareTgt esta on en algun MC
+    -- (por simplicidad el leader siempre publica; los MCs deciden si atacar)
+    RQ.Scheduler.every("rq_vip_leader_tgt", 1000, function()
+        if RQ.tier ~= "VIP" or not C.get("vip.master", true) then return end
+        if not C.get("vip.mch.isLeader", false) then return end
+        if not RQ.Net.conectado then return end
+        local tgt = _rqGetTarget()
+        if tgt then
+            local name; pcall(function() name = tgt:getName() end)
+            if name then RQ.Net.send("leader_tgt", {name=name}) end
         end
     end)
+
+    RQ.Net.on("leader_tgt", function(from, data)
+        if RQ.tier ~= "VIP" or not C.get("vip.master", true) then return end
+        if C.get("vip.mch.isLeader", false) then return end
+        if not C.get("vip.mch.shareTgt", false) then return end
+        if C.get("vip.mch.leader", "") ~= from then return end
+        if not data or not data.name then return end
+        -- si no tengo target y hay uno con ese nombre cerca, atacarlo
+        if _rqGetTarget() then return end
+        for _, c in ipairs(RQ.Game.creatures()) do
+            if c.name == data.name and c.isMonster and c.ref then
+                pcall(function() attack(c.ref) end)
+                return
+            end
+        end
+    end)
+
+    -- Party auto: si esta activo, aceptar invitaciones automaticamente
+    -- (usa game_bot_party events si estan disponibles)
+    RQ.Scheduler.every("rq_vip_party_auto", 3000, function()
+        if RQ.tier ~= "VIP" or not C.get("vip.master", true) then return end
+        if not C.get("vip.mch.party", false) then return end
+        -- si soy leader, invitar a los MCs que estan cerca
+        if C.get("vip.mch.isLeader", false) then
+            for _, c in ipairs(RQ.Game.creatures()) do
+                if c.isPlayer and c.ref then
+                    pcall(function() g_game.partyInvite(c.ref:getId()) end)
+                end
+            end
+        else
+            -- si soy MC, aceptar invitacion del leader si viene
+            local ldrName = C.get("vip.mch.leader", "")
+            if ldrName == "" then return end
+            for _, c in ipairs(RQ.Game.creatures()) do
+                if c.name == ldrName and c.ref then
+                    pcall(function() g_game.partyJoin(c.ref:getId()) end)
+                    return
+                end
+            end
+        end
+    end)
+
     local pksVistos = {}
     RQ.Scheduler.every("rq_vip_antipk", 1000, function()
         if RQ.tier ~= "VIP" or not C.get("vip.master", true) then return end
@@ -2588,6 +4004,96 @@ Panel
         end
     end)
 
+    -- =================================================
+    -- UTILIDADES: XP Boost + Stamina + Notificaciones
+    -- =================================================
+    -- XP Boost: auto-usar el item cada 6 horas (21600 seg)
+    local lastXpUse = 0
+    macro(60000, "RScriptz VIP: XP Boost auto", function()
+        if RQ.tier ~= "VIP" or not C.get("vip.master", true) then return end
+        if not C.get("vip.xp.on", false) then return end
+        local id = tonumber(C.get("vip.xp.item", 0)) or 0
+        if id <= 0 then return end
+        local now = os.time()
+        if now - lastXpUse < 21600 then return end   -- 6 horas
+        -- buscar item en containers y usar
+        pcall(function()
+            for _, cont in pairs(g_game.getContainers() or {}) do
+                for _, it in ipairs(cont:getItems() or {}) do
+                    if it:getId() == id then
+                        g_game.use(it)
+                        lastXpUse = now
+                        pcall(function() whiteInfoMessage("[RScriptz] XP Boost usado!") end)
+                        return
+                    end
+                end
+            end
+        end)
+    end)
+
+    -- Stamina Watch: avisar cuando baja de 14h (840 minutos)
+    local lastStaAlert = 0
+    macro(60000, "RScriptz VIP: Stamina Watch", function()
+        if RQ.tier ~= "VIP" or not C.get("vip.master", true) then return end
+        if not C.get("vip.sta.on", true) then return end
+        local mins = 0
+        pcall(function() mins = player:getStamina() end)   -- stamina en minutos
+        if mins > 0 and mins <= 840 then   -- 14h = 840 min
+            local now = os.time()
+            if now - lastStaAlert > 300 then   -- no spamear, cada 5 min max
+                pcall(function() statusMessage("[RScriptz] STAMINA: "..math.floor(mins/60).."h "..(mins%60).."m -- considera parar!") end)
+                if RQ.Net.conectado then
+                    RQ.Net.send("mc_stamina", {mins=mins})
+                end
+                lastStaAlert = now
+            end
+        end
+    end)
+
+    -- Notificaciones: MC muerto -> avisar al leader por hub
+    -- Usamos onDeath hook si esta disponible, sino chequeamos HP=0
+    local heraldDeath = false
+    macro(500, "RScriptz VIP: Detectar muerte", function()
+        if RQ.tier ~= "VIP" or not C.get("vip.master", true) then return end
+        if not C.get("vip.notif.death", true) then return end
+        if C.get("vip.mch.isLeader", false) then return end   -- solo MCs avisan
+        local hp = RQ.Game.hp()
+        if hp == 0 and not heraldDeath then
+            heraldDeath = true
+            if RQ.Net.conectado then
+                RQ.Net.send("mc_died", {name = RQ.Game.name()})
+            end
+        elseif hp > 0 then
+            heraldDeath = false
+        end
+    end)
+    RQ.Net.on("mc_died", function(from, data)
+        if not C.get("vip.mch.isLeader", false) then return end
+        pcall(function() statusMessage("[RScriptz] !! "..tostring(data and data.name or from).." MURIO !!") end)
+    end)
+
+    -- Notificaciones: MC level up
+    local lastLevel = -1
+    macro(2000, "RScriptz VIP: Detectar level up", function()
+        if RQ.tier ~= "VIP" or not C.get("vip.master", true) then return end
+        if not C.get("vip.notif.level", true) then return end
+        if C.get("vip.mch.isLeader", false) then return end
+        local lvl = -1
+        pcall(function() lvl = player:getLevel() end)
+        if lvl <= 0 then return end
+        if lastLevel < 0 then lastLevel = lvl; return end
+        if lvl > lastLevel then
+            lastLevel = lvl
+            if RQ.Net.conectado then
+                RQ.Net.send("mc_level", {name=RQ.Game.name(), lvl=lvl})
+            end
+        end
+    end)
+    RQ.Net.on("mc_level", function(from, data)
+        if not C.get("vip.mch.isLeader", false) then return end
+        pcall(function() whiteInfoMessage("[RScriptz] "..tostring(data and data.name or from).." subio a nivel "..tostring(data and data.lvl or "?")) end)
+    end)
+
     macro(50, "RScriptz Core", function() RQ.Scheduler.tick() end)
     RQ.Scheduler.every("rq_vip_autoconn", 5000, function()
         if not RQ.Net.conectado then RQ.Net.connect(C.get("net.canal", "rq")) end
@@ -2595,7 +4101,7 @@ Panel
     RQ.Scheduler.every("rq_vip_poll", 100, function() RQ.Net.poll() end)
 
     pcall(function() broadcastMessage("RScriptz v"..RQ.version.." VIP cargado - "..RQ.Game.name()) end)
-    RQ.Logger.info("RScriptz", "listo v"..RQ.version.." modo VIP (menu)")
+    RQ.Logger.info("RScriptz", "listo v"..RQ.version.." modo VIP (menu+modulos+utils)")
 end
 
 
