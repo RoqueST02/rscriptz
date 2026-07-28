@@ -1213,8 +1213,9 @@ Panel
     anchors.top: prev.bottom
     anchors.left: parent.left
     margin-top: 3
+    margin-left: 2
     height: 20
-    width: 60
+    width: 40
     !text: tr('ON')
 
   BotSwitch
@@ -1222,23 +1223,48 @@ Panel
     anchors.top: prev.top
     anchors.left: prev.right
     anchors.bottom: prev.bottom
-    margin-left: 4
-    width: 60
+    margin-left: 3
+    width: 46
     !text: tr('POT')
 
   BotItem
     id: hp1item
     anchors.top: hp1on.top
     anchors.left: hp1mode.right
-    margin-left: 8
+    margin-left: 6
 
   TextEdit
     id: hp1spell
     anchors.top: hp1on.top
     anchors.bottom: hp1on.bottom
-    anchors.left: hp1mode.right
+    anchors.left: hp1item.right
     anchors.right: parent.right
-    margin-left: 34
+    margin-left: 4
+    margin-right: 3
+
+  Label
+    id: hp1txt
+    anchors.top: hp1on.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text-align: center
+    text: HP<= 50%
+    color: #E8E8E8
+    font: verdana-11px-rounded
+    height: 14
+    margin-top: 4
+
+  HorizontalScrollBar
+    id: hp1pct
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    minimum: 5
+    maximum: 100
+    step: 5
+    height: 14
+    margin-top: 2
+    margin-left: 4
     margin-right: 4
 
   Label
@@ -1283,8 +1309,9 @@ Panel
     anchors.top: prev.bottom
     anchors.left: parent.left
     margin-top: 3
+    margin-left: 2
     height: 20
-    width: 60
+    width: 40
     !text: tr('ON')
 
   BotSwitch
@@ -1292,23 +1319,48 @@ Panel
     anchors.top: prev.top
     anchors.left: prev.right
     anchors.bottom: prev.bottom
-    margin-left: 4
-    width: 60
+    margin-left: 3
+    width: 46
     !text: tr('POT')
 
   BotItem
     id: hp2item
     anchors.top: hp2on.top
     anchors.left: hp2mode.right
-    margin-left: 8
+    margin-left: 6
 
   TextEdit
     id: hp2spell
     anchors.top: hp2on.top
     anchors.bottom: hp2on.bottom
-    anchors.left: hp2mode.right
+    anchors.left: hp2item.right
     anchors.right: parent.right
-    margin-left: 34
+    margin-left: 4
+    margin-right: 3
+
+  Label
+    id: hp2txt
+    anchors.top: hp2on.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text-align: center
+    text: HP<= 50%
+    color: #E8E8E8
+    font: verdana-11px-rounded
+    height: 14
+    margin-top: 4
+
+  HorizontalScrollBar
+    id: hp2pct
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    minimum: 5
+    maximum: 100
+    step: 5
+    height: 14
+    margin-top: 2
+    margin-left: 4
     margin-right: 4
 
   Label
@@ -1353,8 +1405,9 @@ Panel
     anchors.top: prev.bottom
     anchors.left: parent.left
     margin-top: 3
+    margin-left: 2
     height: 20
-    width: 60
+    width: 40
     !text: tr('ON')
 
   BotSwitch
@@ -1362,23 +1415,48 @@ Panel
     anchors.top: prev.top
     anchors.left: prev.right
     anchors.bottom: prev.bottom
-    margin-left: 4
-    width: 60
+    margin-left: 3
+    width: 46
     !text: tr('POT')
 
   BotItem
     id: hp3item
     anchors.top: hp3on.top
     anchors.left: hp3mode.right
-    margin-left: 8
+    margin-left: 6
 
   TextEdit
     id: hp3spell
     anchors.top: hp3on.top
     anchors.bottom: hp3on.bottom
-    anchors.left: hp3mode.right
+    anchors.left: hp3item.right
     anchors.right: parent.right
-    margin-left: 34
+    margin-left: 4
+    margin-right: 3
+
+  Label
+    id: hp3txt
+    anchors.top: hp3on.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text-align: center
+    text: HP<= 50%
+    color: #E8E8E8
+    font: verdana-11px-rounded
+    height: 14
+    margin-top: 4
+
+  HorizontalScrollBar
+    id: hp3pct
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    minimum: 5
+    maximum: 100
+    step: 5
+    height: 14
+    margin-top: 2
+    margin-left: 4
     margin-right: 4
 
   Label
@@ -1437,8 +1515,9 @@ Panel
     anchors.top: prev.bottom
     anchors.left: parent.left
     margin-top: 3
+    margin-left: 2
     height: 20
-    width: 60
+    width: 40
     !text: tr('ON')
 
   BotSwitch
@@ -1446,23 +1525,48 @@ Panel
     anchors.top: prev.top
     anchors.left: prev.right
     anchors.bottom: prev.bottom
-    margin-left: 4
-    width: 60
+    margin-left: 3
+    width: 46
     !text: tr('POT')
 
   BotItem
     id: mp1item
     anchors.top: mp1on.top
     anchors.left: mp1mode.right
-    margin-left: 8
+    margin-left: 6
 
   TextEdit
     id: mp1spell
     anchors.top: mp1on.top
     anchors.bottom: mp1on.bottom
-    anchors.left: mp1mode.right
+    anchors.left: mp1item.right
     anchors.right: parent.right
-    margin-left: 34
+    margin-left: 4
+    margin-right: 3
+
+  Label
+    id: mp1txt
+    anchors.top: mp1on.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text-align: center
+    text: MP<= 50%
+    color: #E8E8E8
+    font: verdana-11px-rounded
+    height: 14
+    margin-top: 4
+
+  HorizontalScrollBar
+    id: mp1pct
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    minimum: 5
+    maximum: 100
+    step: 5
+    height: 14
+    margin-top: 2
+    margin-left: 4
     margin-right: 4
 
   Label
@@ -1507,8 +1611,9 @@ Panel
     anchors.top: prev.bottom
     anchors.left: parent.left
     margin-top: 3
+    margin-left: 2
     height: 20
-    width: 60
+    width: 40
     !text: tr('ON')
 
   BotSwitch
@@ -1516,23 +1621,48 @@ Panel
     anchors.top: prev.top
     anchors.left: prev.right
     anchors.bottom: prev.bottom
-    margin-left: 4
-    width: 60
+    margin-left: 3
+    width: 46
     !text: tr('POT')
 
   BotItem
     id: mp2item
     anchors.top: mp2on.top
     anchors.left: mp2mode.right
-    margin-left: 8
+    margin-left: 6
 
   TextEdit
     id: mp2spell
     anchors.top: mp2on.top
     anchors.bottom: mp2on.bottom
-    anchors.left: mp2mode.right
+    anchors.left: mp2item.right
     anchors.right: parent.right
-    margin-left: 34
+    margin-left: 4
+    margin-right: 3
+
+  Label
+    id: mp2txt
+    anchors.top: mp2on.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text-align: center
+    text: MP<= 50%
+    color: #E8E8E8
+    font: verdana-11px-rounded
+    height: 14
+    margin-top: 4
+
+  HorizontalScrollBar
+    id: mp2pct
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    minimum: 5
+    maximum: 100
+    step: 5
+    height: 14
+    margin-top: 2
+    margin-left: 4
     margin-right: 4
 
   Label
@@ -1577,8 +1707,9 @@ Panel
     anchors.top: prev.bottom
     anchors.left: parent.left
     margin-top: 3
+    margin-left: 2
     height: 20
-    width: 60
+    width: 40
     !text: tr('ON')
 
   BotSwitch
@@ -1586,23 +1717,48 @@ Panel
     anchors.top: prev.top
     anchors.left: prev.right
     anchors.bottom: prev.bottom
-    margin-left: 4
-    width: 60
+    margin-left: 3
+    width: 46
     !text: tr('POT')
 
   BotItem
     id: mp3item
     anchors.top: mp3on.top
     anchors.left: mp3mode.right
-    margin-left: 8
+    margin-left: 6
 
   TextEdit
     id: mp3spell
     anchors.top: mp3on.top
     anchors.bottom: mp3on.bottom
-    anchors.left: mp3mode.right
+    anchors.left: mp3item.right
     anchors.right: parent.right
-    margin-left: 34
+    margin-left: 4
+    margin-right: 3
+
+  Label
+    id: mp3txt
+    anchors.top: mp3on.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    text-align: center
+    text: MP<= 50%
+    color: #E8E8E8
+    font: verdana-11px-rounded
+    height: 14
+    margin-top: 4
+
+  HorizontalScrollBar
+    id: mp3pct
+    anchors.top: prev.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    minimum: 5
+    maximum: 100
+    step: 5
+    height: 14
+    margin-top: 2
+    margin-left: 4
     margin-right: 4
 
   Label
@@ -1631,6 +1787,7 @@ Panel
     margin-right: 4
 
 
+
   Label
     id: utilHdr
     anchors.top: prev.bottom
@@ -1653,7 +1810,7 @@ Panel
     font: verdana-11px-rounded
     height: 14
     margin-top: 6
-    width: 60
+    width: 54
 
   BotSwitch
     id: hasteOn
@@ -1661,7 +1818,7 @@ Panel
     anchors.left: prev.right
     margin-left: 4
     height: 20
-    width: 60
+    width: 40
     !text: tr('ON')
 
   ComboBox
@@ -1682,7 +1839,7 @@ Panel
     font: verdana-11px-rounded
     height: 14
     margin-top: 6
-    width: 60
+    width: 54
 
   BotSwitch
     id: aparOn
@@ -1690,7 +1847,7 @@ Panel
     anchors.left: prev.right
     margin-left: 4
     height: 20
-    width: 60
+    width: 40
     !text: tr('ON')
 
   Label
@@ -1699,7 +1856,7 @@ Panel
     anchors.bottom: prev.bottom
     anchors.left: prev.right
     anchors.right: parent.right
-    text: (castea Haste al detectar)
+    text: castea Haste
     text-align: center
     color: #8A8A8A
     font: verdana-11px-rounded
@@ -1715,7 +1872,7 @@ Panel
     font: verdana-11px-rounded
     height: 14
     margin-top: 6
-    width: 60
+    width: 54
 
   BotSwitch
     id: utamoOn
@@ -1723,7 +1880,7 @@ Panel
     anchors.left: prev.right
     margin-left: 4
     height: 20
-    width: 50
+    width: 40
     !text: tr('ON')
 
   BotSwitch
@@ -1732,22 +1889,22 @@ Panel
     anchors.bottom: prev.bottom
     anchors.left: prev.right
     margin-left: 4
-    width: 50
+    width: 46
     !text: tr('SPELL')
-
-  TextEdit
-    id: utamoSpell
-    anchors.top: prev.top
-    anchors.bottom: prev.bottom
-    anchors.left: prev.right
-    anchors.right: utamoRing.left
-    margin-left: 4
-    margin-right: 4
 
   BotItem
     id: utamoRing
     anchors.top: utamoOn.top
+    anchors.left: prev.right
+    margin-left: 6
+
+  TextEdit
+    id: utamoSpell
+    anchors.top: utamoOn.top
+    anchors.bottom: utamoOn.bottom
+    anchors.left: prev.right
     anchors.right: parent.right
+    margin-left: 4
     margin-right: 4
 
 
@@ -1771,8 +1928,8 @@ Panel
     color: #C8C8C8
     font: verdana-11px-rounded
     height: 14
-    margin-top: 4
-    width: 50
+    margin-top: 6
+    width: 46
 
   BotSwitch
     id: ring1on
@@ -1780,44 +1937,20 @@ Panel
     anchors.left: prev.right
     margin-left: 4
     height: 20
-    width: 50
+    width: 40
     !text: tr('ON')
-
-  Label
-    id: ring1invLbl
-    anchors.top: prev.top
-    anchors.bottom: prev.bottom
-    anchors.left: prev.right
-    text: sin:
-    text-align: center
-    color: #8A8A8A
-    font: verdana-11px-rounded
-    margin-left: 8
-    width: 26
 
   BotItem
     id: ring1inv
     anchors.top: ring1on.top
     anchors.left: prev.right
-    margin-left: 2
-
-  Label
-    id: ring1actLbl
-    anchors.top: ring1on.top
-    anchors.bottom: ring1on.bottom
-    anchors.left: prev.right
-    text: activo:
-    text-align: center
-    color: #8A8A8A
-    font: verdana-11px-rounded
-    margin-left: 8
-    width: 44
+    margin-left: 6
 
   BotItem
     id: ring1act
     anchors.top: ring1on.top
     anchors.left: prev.right
-    margin-left: 2
+    margin-left: 6
   Label
     id: ring2lbl
     anchors.top: prev.bottom
@@ -1826,8 +1959,8 @@ Panel
     color: #C8C8C8
     font: verdana-11px-rounded
     height: 14
-    margin-top: 4
-    width: 50
+    margin-top: 6
+    width: 46
 
   BotSwitch
     id: ring2on
@@ -1835,44 +1968,20 @@ Panel
     anchors.left: prev.right
     margin-left: 4
     height: 20
-    width: 50
+    width: 40
     !text: tr('ON')
-
-  Label
-    id: ring2invLbl
-    anchors.top: prev.top
-    anchors.bottom: prev.bottom
-    anchors.left: prev.right
-    text: sin:
-    text-align: center
-    color: #8A8A8A
-    font: verdana-11px-rounded
-    margin-left: 8
-    width: 26
 
   BotItem
     id: ring2inv
     anchors.top: ring2on.top
     anchors.left: prev.right
-    margin-left: 2
-
-  Label
-    id: ring2actLbl
-    anchors.top: ring2on.top
-    anchors.bottom: ring2on.bottom
-    anchors.left: prev.right
-    text: activo:
-    text-align: center
-    color: #8A8A8A
-    font: verdana-11px-rounded
-    margin-left: 8
-    width: 44
+    margin-left: 6
 
   BotItem
     id: ring2act
     anchors.top: ring2on.top
     anchors.left: prev.right
-    margin-left: 2
+    margin-left: 6
   Label
     id: ring3lbl
     anchors.top: prev.bottom
@@ -1881,8 +1990,8 @@ Panel
     color: #C8C8C8
     font: verdana-11px-rounded
     height: 14
-    margin-top: 4
-    width: 50
+    margin-top: 6
+    width: 46
 
   BotSwitch
     id: ring3on
@@ -1890,44 +1999,20 @@ Panel
     anchors.left: prev.right
     margin-left: 4
     height: 20
-    width: 50
+    width: 40
     !text: tr('ON')
-
-  Label
-    id: ring3invLbl
-    anchors.top: prev.top
-    anchors.bottom: prev.bottom
-    anchors.left: prev.right
-    text: sin:
-    text-align: center
-    color: #8A8A8A
-    font: verdana-11px-rounded
-    margin-left: 8
-    width: 26
 
   BotItem
     id: ring3inv
     anchors.top: ring3on.top
     anchors.left: prev.right
-    margin-left: 2
-
-  Label
-    id: ring3actLbl
-    anchors.top: ring3on.top
-    anchors.bottom: ring3on.bottom
-    anchors.left: prev.right
-    text: activo:
-    text-align: center
-    color: #8A8A8A
-    font: verdana-11px-rounded
-    margin-left: 8
-    width: 44
+    margin-left: 6
 
   BotItem
     id: ring3act
     anchors.top: ring3on.top
     anchors.left: prev.right
-    margin-left: 2
+    margin-left: 6
 
   Label
     id: neckHdr
@@ -1949,8 +2034,8 @@ Panel
     color: #C8C8C8
     font: verdana-11px-rounded
     height: 14
-    margin-top: 4
-    width: 50
+    margin-top: 6
+    width: 46
 
   BotSwitch
     id: neck1on
@@ -1958,44 +2043,20 @@ Panel
     anchors.left: prev.right
     margin-left: 4
     height: 20
-    width: 50
+    width: 40
     !text: tr('ON')
-
-  Label
-    id: neck1invLbl
-    anchors.top: prev.top
-    anchors.bottom: prev.bottom
-    anchors.left: prev.right
-    text: sin:
-    text-align: center
-    color: #8A8A8A
-    font: verdana-11px-rounded
-    margin-left: 8
-    width: 26
 
   BotItem
     id: neck1inv
     anchors.top: neck1on.top
     anchors.left: prev.right
-    margin-left: 2
-
-  Label
-    id: neck1actLbl
-    anchors.top: neck1on.top
-    anchors.bottom: neck1on.bottom
-    anchors.left: prev.right
-    text: activo:
-    text-align: center
-    color: #8A8A8A
-    font: verdana-11px-rounded
-    margin-left: 8
-    width: 44
+    margin-left: 6
 
   BotItem
     id: neck1act
     anchors.top: neck1on.top
     anchors.left: prev.right
-    margin-left: 2
+    margin-left: 6
   Label
     id: neck2lbl
     anchors.top: prev.bottom
@@ -2004,8 +2065,8 @@ Panel
     color: #C8C8C8
     font: verdana-11px-rounded
     height: 14
-    margin-top: 4
-    width: 50
+    margin-top: 6
+    width: 46
 
   BotSwitch
     id: neck2on
@@ -2013,44 +2074,20 @@ Panel
     anchors.left: prev.right
     margin-left: 4
     height: 20
-    width: 50
+    width: 40
     !text: tr('ON')
-
-  Label
-    id: neck2invLbl
-    anchors.top: prev.top
-    anchors.bottom: prev.bottom
-    anchors.left: prev.right
-    text: sin:
-    text-align: center
-    color: #8A8A8A
-    font: verdana-11px-rounded
-    margin-left: 8
-    width: 26
 
   BotItem
     id: neck2inv
     anchors.top: neck2on.top
     anchors.left: prev.right
-    margin-left: 2
-
-  Label
-    id: neck2actLbl
-    anchors.top: neck2on.top
-    anchors.bottom: neck2on.bottom
-    anchors.left: prev.right
-    text: activo:
-    text-align: center
-    color: #8A8A8A
-    font: verdana-11px-rounded
-    margin-left: 8
-    width: 44
+    margin-left: 6
 
   BotItem
     id: neck2act
     anchors.top: neck2on.top
     anchors.left: prev.right
-    margin-left: 2
+    margin-left: 6
   Label
     id: neck3lbl
     anchors.top: prev.bottom
@@ -2059,8 +2096,8 @@ Panel
     color: #C8C8C8
     font: verdana-11px-rounded
     height: 14
-    margin-top: 4
-    width: 50
+    margin-top: 6
+    width: 46
 
   BotSwitch
     id: neck3on
@@ -2068,44 +2105,20 @@ Panel
     anchors.left: prev.right
     margin-left: 4
     height: 20
-    width: 50
+    width: 40
     !text: tr('ON')
-
-  Label
-    id: neck3invLbl
-    anchors.top: prev.top
-    anchors.bottom: prev.bottom
-    anchors.left: prev.right
-    text: sin:
-    text-align: center
-    color: #8A8A8A
-    font: verdana-11px-rounded
-    margin-left: 8
-    width: 26
 
   BotItem
     id: neck3inv
     anchors.top: neck3on.top
     anchors.left: prev.right
-    margin-left: 2
-
-  Label
-    id: neck3actLbl
-    anchors.top: neck3on.top
-    anchors.bottom: neck3on.bottom
-    anchors.left: prev.right
-    text: activo:
-    text-align: center
-    color: #8A8A8A
-    font: verdana-11px-rounded
-    margin-left: 8
-    width: 44
+    margin-left: 6
 
   BotItem
     id: neck3act
     anchors.top: neck3on.top
     anchors.left: prev.right
-    margin-left: 2
+    margin-left: 6
 ]==]); pcall(function() pCura:hide() end)
     local pAtk  = setupUI([==[
 Panel
