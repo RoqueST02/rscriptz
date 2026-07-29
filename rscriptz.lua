@@ -1,5 +1,5 @@
 --[[ ==========================================================
-  RScriptz  v3.1  (fix vBot: usar setupUI + pages hide/show)
+  RScriptz  v3.2  (fix: layout dentro de OTUI, no depender de UIVerticalLayout)
   ----------------------------------------------------------
   Bot para Tibia (vBot 4.8 / Mayas OTC).
 
@@ -14,7 +14,7 @@
 -- ====== CONFIG DE LICENCIA / LOG (edita el vendedor) ======
 local LICENSE_CSV_URL = ""
 local RQ_LOG_URL      = ""
-local RQ_VERSION      = "3.1"
+local RQ_VERSION      = "3.2"
 
 -- ============================================================
 -- STORAGE POR PERSONAJE
@@ -166,35 +166,30 @@ local RUNAS_LIST = {
 -- ============================================================
 -- PAGES (Panels que se muestran/ocultan dentro de vBot)
 -- ============================================================
--- Panel raiz (contenedor de todas las pages)
-local root = setupUI([==[
-Panel
-  id: rqRoot
-  height: 500
-  layout:
-    type: verticalBox
-    spacing: 0
-  padding: 0
-  background-color: #141414
-]==])
-if not root then
-    _say("Error: setupUI no disponible. vBot demasiado viejo?")
-    return
-end
-
--- Cada page es un Panel hijo de root; solo uno visible a la vez
+-- Cada page es un Panel creado con setupUI (que define el layout en el
+-- propio OTUI, para no depender de UIVerticalLayout como global -- que
+-- no existe en todas las versiones de vBot/MEHAH).
 local pages = {}
 local currentPage = nil
 
 local function newPage(id, height)
-    local p = g_ui.createWidget('Panel', root)
-    p:setId(id)
-    p:setHeight(height or 500)
-    pcall(function() p:setBackgroundColor(COLOR_BG) end)
-    p:setPhantom(false)
-    p:setLayout(UIVerticalLayout.create(p))
-    pcall(function() p:getLayout():setSpacing(4) end)
-    p:hide()
+    local otui = string.format([==[
+Panel
+  id: %s
+  height: %d
+  background-color: #141414
+  padding: 4
+  layout:
+    type: verticalBox
+    spacing: 4
+]==], id, height or 500)
+    local p
+    local ok, err = pcall(function() p = setupUI(otui) end)
+    if not ok or not p then
+        _say("Error creando page " .. id .. ": " .. tostring(err))
+        return nil
+    end
+    pcall(function() p:hide() end)
     pages[id] = p
     return p
 end
